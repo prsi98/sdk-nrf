@@ -207,6 +207,7 @@ static int nrf_wifi_radio_test_otp_write_params(const struct shell *shell,
 		status = write_otp_memory(field, &write_val[0]);
 		break;
 	case CALIB_XO:
+	case CALIB_ANTGAIN:
 	case REGION_DEFAULTS:
 		if (argc != 3) {
 			shell_fprintf(shell, SHELL_ERROR,

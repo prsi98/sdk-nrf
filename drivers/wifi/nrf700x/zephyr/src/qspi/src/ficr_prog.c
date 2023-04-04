@@ -292,6 +292,22 @@ int write_otp_memory(unsigned int otp_addr, unsigned int *write_val)
 						(REGION_DEFAULTS) << 2, mask_val);
 		}
 		break;
+	case CALIB_ANTGAIN:
+		mask_val = CALIB_ANTGAIN_FLAG_MASK;
+		ret = write_otp_location(CALIB_ANTGAIN, write_val[0]);
+		
+		if (ret== -ENOEXEC) {
+			LOG_ERR("RX_GAIN_Update Exception\n");
+			goto _exit_otp_write;
+		} else {
+			write_otp_location(REGION_DEFAULTS, mask_val);
+
+			LOG_INF("Written CALIB_RXGAINOFFSET (0x%x) to 0x%04x\n",
+						CALIB_ANTGAIN << 2, write_val[0]);
+			LOG_INF("Written REGION_DEFAULTS (0x%x) : 0x%04x\n",
+						(REGION_DEFAULTS) << 2, mask_val);
+		}				
+		break;	
 	case REGION_DEFAULTS:
 		write_otp_location(REGION_DEFAULTS, write_val[0]);
 

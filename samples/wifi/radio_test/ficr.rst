@@ -63,6 +63,11 @@ Wi-Fi radio FICR subcommands
      - arg
      - arg is 7-bit unsigned XO value. Bits [31:7] unused. Adjusts capacitor bank, 0 : Lowest capacitance (Highest frequency), 127 : Highest capacitance (Lowest frequency).
    * - otp_write_params
+     - CALIB_ANTGAIN
+     - 0x148
+     - arg
+     - arg is 32-bit unsigned. Bits [7-0] 2.4GHz, Bits [15-8] low 5GHz, Bits [23-16] mid 5GHz, Bits [31-24] high 5GHz. 
+   * - otp_write_params
      - REGION_DEFAULTS
      - 0x154
      - arg
@@ -78,7 +83,7 @@ Wi-Fi radio FICR subcommands
        | bit 6  : Reserved
        | bit 7  : Reserved
        | bit 8  : Reserved
-       | bit 9  : Reserved
+       | bit 9  : CALIB_ANTGAIN
        | bit 10 : Reserved
        | bit 11 : Reserved
        | bit 12-31 : Reserved

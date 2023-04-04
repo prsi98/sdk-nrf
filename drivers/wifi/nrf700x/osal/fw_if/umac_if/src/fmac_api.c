@@ -4232,11 +4232,11 @@ enum wifi_nrf_status wifi_nrf_fmac_rf_params_get(struct wifi_nrf_fmac_dev_ctx *f
 				      OTP_SZ_CALIB_PWR5GM0);
 	}
 
-	if (!(otp_info.flags & (~CALIB_RXGNOFF_FLAG_MASK))) {
+	if (!(otp_info.flags & (~CALIB_ANTGAIN_FLAG_MASK))) {
 		wifi_nrf_osal_mem_cpy(fmac_dev_ctx->fpriv->opriv,
-				      &rf_params[NRF_WIFI_RF_PARAMS_OFF_CALIB_RXGNOFF],
-				      (char *)otp_info.info.calib + OTP_OFF_CALIB_RXGNOFF,
-				      OTP_SZ_CALIB_RXGNOFF);
+				      &rf_params[NRF_WIFI_RF_PARAMS_OFF_CALIB_ANTGAIN],
+				      (char *)otp_info.info.calib + OTP_OFF_CALIB_ANTGAIN,
+				      OTP_SZ_CALIB_ANTGAIN);
 	}
 
 	if (!(otp_info.flags & (~CALIB_TXPOWBACKOFFT_FLAG_MASK))) {
