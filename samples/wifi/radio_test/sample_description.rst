@@ -475,6 +475,7 @@ Testing
 
               wifi_radio_test init 144
               wifi_radio_test rx_capture_length 64
+              wifi_radio_test rx_capture_timeout 10
               wifi_radio_test rx_cap 2
 
            The sample shows the following output:
@@ -492,7 +493,12 @@ Testing
               EA5FE4
               FDDF45
               07CF3D
+           
+           In clean environment packet detection will fail, with following output:
 
+           .. code-block:: console
+
+              ************* Packet detection failed ***********
 
          .. note::
 
@@ -504,6 +510,7 @@ Testing
               The captured samples will vary from run to run.
             * The capture is taken after WLAN packet detection, so it will not have the first few samples in the first WLAN packet.
             * Smaller packets should be used so that multiple packets can be seen in the capture.
+            * In clean environment packet detection will fail.
 
 
       .. group-tab:: FICR/OTP programming

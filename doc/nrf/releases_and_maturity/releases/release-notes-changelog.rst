@@ -828,6 +828,10 @@ Wi-Fi samples that used :ref:`zephyr:bluetooth-hci-ipc-sample` or :ref:`zephyr:n
 
   * Modified to use the :ref:`lib_wifi_ready` library to manage the Wi-Fi use.
 
+* :ref:`wifi_radio_test` sample:
+
+  * Added capture timeout as a parameter for packet capture.
+
 Other samples
 -------------
 
