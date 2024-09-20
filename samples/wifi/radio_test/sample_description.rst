@@ -515,6 +515,17 @@ Testing
             * Packet detection does not take place in a clean RF environment.
             * The command will timeout if no packets are detected within set timeout period.
 
+         * To read battery voltage in Volts, execute the following sequence of commands:
+
+           .. code-block:: console
+
+              wifi_radio_test get_voltage
+
+           The sample shows the following output:
+
+           .. code-block:: console
+
+               wifi_nrf: The battery voltage is = 3.55000 Volts
 
       .. group-tab:: FICR/OTP programming
 

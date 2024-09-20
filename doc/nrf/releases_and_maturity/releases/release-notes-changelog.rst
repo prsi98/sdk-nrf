@@ -555,6 +555,7 @@ Wi-Fi samples
 
   * Added capture timeout as a parameter for packet capture.
   * Expanded the scope of ``wifi_radio_test show_config`` subcommand and rectified the behavior of ``wifi_radio_test tx_pkt_preamble`` subcommand.
+  * Added ``wifi_radio_test get_voltage`` subcommand to read the battery voltage.
 
 * :ref:`softap_wifi_provision_sample` sample:
 
