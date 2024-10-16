@@ -87,14 +87,16 @@ Devicetree Specification configuration
 ======================================
 
 The maximum transmit power achieved on a nRF70 Series device-based product depends on the frequency band and operating channel.
-This varies from chip to chip as well as over different :term:`Printed Circuit Board (PCB)` designs.
+This varies over different :term:`Printed Circuit Board (PCB)` designs.
 
 Multiple calibrations and checks are implemented to ensure consistency across channels and devices.
 However, these values have a dependency on PCB design, which may result in Error Vector Magnitude (EVM) and spectral mask failures.
 To avoid this problem, you can specify the power ceiling at which the EVM and spectral mask are met for a given PCB design.
 Additionally, build-time parameters are made available to drivers through the DTS overlay file.
 
-The following code snippet shows an example of the DTS overlay file:
+The following code snippet shows an example of the DTS overlay file. Note that the numbers filled in the following example do not represent any particular PCB design or package type.
+These are just example numbers. Customer should fill these values based on measurements obtained from transmitter testing on their PCB design. These numbers are represented in 0.25 dB steps.
+If 15 dBm needs to be configured then value 60 (0x3c in hex) should be configured.
 
 .. code-block:: devicetree
 
