@@ -263,7 +263,11 @@ Wi-Fi radio test subcommands
      - 0
      - Configuration
      - If the channel is an edge channel, the value of <val> is subtracted from the transmit power.
-
+   * - get_voltage
+     - | No arguments required
+     - N/A
+     - Action
+     - Get battery voltage.
 
 .. _wifi_radio_test_stats:
 

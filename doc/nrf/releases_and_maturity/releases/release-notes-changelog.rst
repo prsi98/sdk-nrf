@@ -386,6 +386,10 @@ Zigbee samples
 Wi-Fi samples
 -------------
 
+* :ref:`wifi_radio_test` sample:
+
+  * Added ``wifi_radio_test get_voltage`` subcommand to read the battery voltage.
+
 |no_changes_yet_note|
 
 Other samples
