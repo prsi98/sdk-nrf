@@ -1695,6 +1695,7 @@ static int nrf_wifi_radio_get_temperature(const struct shell *shell,
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	int ret = -ENOEXEC;
+	int temperature = 0;
 
 	if (!check_test_in_prog(shell)) {
 		goto out;
@@ -1703,7 +1704,7 @@ static int nrf_wifi_radio_get_temperature(const struct shell *shell,
 	ctx->rf_test_run = true;
 	ctx->rf_test = NRF_WIFI_RF_TEST_GET_TEMPERATURE;
 
-	status = nrf_wifi_rt_fmac_rf_get_temp(ctx->rpu_ctx);
+	status = nrf_wifi_rt_fmac_rf_get_temp(ctx->rpu_ctx, &temperature);
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
 		shell_fprintf(shell,
@@ -1712,6 +1713,7 @@ static int nrf_wifi_radio_get_temperature(const struct shell *shell,
 		goto out;
 	}
 
+	shell_fprintf(shell, SHELL_INFO, "The temperature is = %d degree celsius\n", temperature);
 	ret = 0;
 out:
 	ctx->rf_test_run = false;
@@ -1726,6 +1728,7 @@ static int nrf_wifi_radio_get_bat_volt(const struct shell *shell,
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	int ret = -ENOEXEC;
+	int bat_volt = 0;
 
 	if (!check_test_in_prog(shell)) {
 		goto out;
@@ -1734,7 +1737,7 @@ static int nrf_wifi_radio_get_bat_volt(const struct shell *shell,
 	ctx->rf_test_run = true;
 	ctx->rf_test = NRF_WIFI_RF_TEST_GET_BAT_VOLT;
 
-	status = nrf_wifi_rt_fmac_rf_get_bat_volt(ctx->rpu_ctx);
+	status = nrf_wifi_rt_fmac_rf_get_bat_volt(ctx->rpu_ctx, &bat_volt);
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
 		shell_fprintf(shell,
@@ -1743,6 +1746,7 @@ static int nrf_wifi_radio_get_bat_volt(const struct shell *shell,
 		goto out;
 	}
 
+	shell_fprintf(shell, SHELL_INFO, "The battery voltage is = %d mV\n", bat_volt);
 	ret = 0;
 out:
 	ctx->rf_test_run = false;
@@ -1758,6 +1762,7 @@ static int nrf_wifi_radio_get_rf_rssi(const struct shell *shell,
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	int ret = -ENOEXEC;
+	int rssi = 0;
 
 	if (!check_test_in_prog(shell)) {
 		goto out;
@@ -1766,7 +1771,7 @@ static int nrf_wifi_radio_get_rf_rssi(const struct shell *shell,
 	ctx->rf_test_run = true;
 	ctx->rf_test = NRF_WIFI_RF_TEST_RF_RSSI;
 
-	status = nrf_wifi_rt_fmac_rf_get_rf_rssi(ctx->rpu_ctx);
+	status = nrf_wifi_rt_fmac_rf_get_rf_rssi(ctx->rpu_ctx, &rssi);
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
 		shell_fprintf(shell,
@@ -1775,6 +1780,7 @@ static int nrf_wifi_radio_get_rf_rssi(const struct shell *shell,
 		goto out;
 	}
 
+	shell_fprintf(shell, SHELL_INFO, "RF RSSI value is = %d\n", rssi);
 	ret = 0;
 out:
 	ctx->rf_test_run = false;
@@ -1785,10 +1791,10 @@ out:
 
 
 static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
-				     size_t argc,
-				     const char *argv[])
+                       size_t argc,
+                       const char *argv[])
 {
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+    enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	char *ptr = NULL;
 	unsigned long val = 0;
 	int ret = -ENOEXEC;
@@ -1831,47 +1837,47 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 	}
 
 	ctx->conf_params.rf_params[NRF_WIFI_XO_FREQ_BYTE_OFFSET] = val;
-
+	shell_fprintf(shell, SHELL_INFO, "XO value configured is = %lu\n", val);
 	ret = 0;
 out:
-	ctx->rf_test_run = false;
-	ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
+    ctx->rf_test_run = false;
+    ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
 
-	return ret;
+    return ret;
 }
 
 static int nrf_wifi_radio_comp_opt_xo_val(const struct shell *shell,
-					  size_t argc,
-					  const char *argv[])
+                      size_t argc,
+                      const char *argv[])
 {
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+    enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+    int ret = -ENOEXEC;
+    int xo_value = 0;
 
-	int ret = -ENOEXEC;
+    if (!check_test_in_prog(shell)) {
+        goto out;
+    }
 
-	if (!check_test_in_prog(shell)) {
-		goto out;
-	}
+    ctx->rf_test_run = true;
+    ctx->rf_test = NRF_WIFI_RF_TEST_XO_TUNE;
 
-	ctx->rf_test_run = true;
-	ctx->rf_test = NRF_WIFI_RF_TEST_XO_TUNE;
+    status = nrf_wifi_rt_fmac_rf_test_compute_xo(ctx->rpu_ctx, &xo_value);
 
-	status = nrf_wifi_rt_fmac_rf_test_compute_xo(ctx->rpu_ctx);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
+    if (status != NRF_WIFI_STATUS_SUCCESS) {
+        shell_fprintf(shell,
+                  SHELL_ERROR,
 			      "XO value computation failed\n");
-		goto out;
-	}
+        goto out;
+    }
 
-	ret = 0;
+    shell_fprintf(shell, SHELL_INFO, "Best XO value is = %d\n", xo_value);
+    ret = 0;
 out:
-	ctx->rf_test_run = false;
-	ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
+    ctx->rf_test_run = false;
+    ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
 
-	return ret;
+    return ret;
 }
-
 static int nrf_wifi_radio_test_set_ant_gain(const struct shell *shell,
 					    size_t argc,
 					    const char *argv[])
