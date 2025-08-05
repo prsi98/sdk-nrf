@@ -62,4 +62,15 @@ To compensate for antenna gains, set the following Kconfig parameters in the pro
 * :kconfig:option:`CONFIG_NRF70_ANT_GAIN_5G_BAND2` = ``<ant gain value>``
 * :kconfig:option:`CONFIG_NRF70_ANT_GAIN_5G_BAND3` = ``<ant gain value>``
 
+Setting PCB loss parameters
+*******************************
+
+The Kconfig parameters and their default values are defined in the :file:`<ncs_repo>/zephyr/drivers/wifi/nrf_wifi/Kconfig.nrfwifi` file.
+To compensate for PCB loss, set the following Kconfig parameters in the project :file:`prj.conf` configuration file.
+
+* :kconfig:option:`CONFIG_NRF70_PCB_LOSS_2G` = ``<PCB loss value>``
+* :kconfig:option:`CONFIG_NRF70_PCB_LOSS_5G_BAND1` = ``<PCB loss value>``
+* :kconfig:option:`CONFIG_NRF70_PCB_LOSS_5G_BAND2` = ``<PCB loss value>``
+* :kconfig:option:`CONFIG_NRF70_PCB_LOSS_5G_BAND3` = ``<PCB loss value>``
+
 The Kconfig parameters can also be set in a relevant overlay file or entered as command-line arguments to the CMake build.
