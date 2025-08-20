@@ -596,10 +596,17 @@ int main(void)
 		return -1;
 	}
 
+#if 0
+	/*
+	 * TODO: Disable regulatory until recent interface changes
+	 * in regulatory cmd/evt structures are handled
+	 * in zephyr driver
+	 */
 	ret = wifi_set_reg();
 	if (ret) {
 		return -1;
 	}
+#endif
 
 	ret = wifi_set_channel();
 	if (ret) {

@@ -290,6 +290,7 @@ static int check_channel_settings(const struct shell *shell,
 
 enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_params)
 {
+	int ret;
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	unsigned char country_code[NRF_WIFI_COUNTRY_CODE_LEN] = {0};
 
@@ -307,12 +308,39 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 	/* Initialize values which are other than 0 */
 	conf_params->op_mode = RPU_OP_MODE_RADIO_TEST;
 
+#ifndef NRF71_ON_IPC
+#ifdef WIFI_NRF71
+
+	nrf_wifi_osal_mem_set(conf_params->rf_params,
+							0x00,
+							NRF_WIFI_RF_PARAMS_SIZE);
+
+	ret = nrf_wifi_utils_hex_str_to_val(
+			conf_params->rf_params,
+			NRF_WIFI_RF_PARAMS_SIZE,
+			NRF_WIFI_RT_DEF_RF_PARAMS);
+	if (ret == -1) {
+
+		/*
+		shell_fprintf(shell,
+					  SHELL_ERROR,
+					  "%s: Initialization of RF params with default values failed\n",
+					  __func__);
+		*/
+		status = NRF_WIFI_STATUS_FAIL;
+		goto out;
+	}
+
+	status = NRF_WIFI_STATUS_SUCCESS;
+#else /* WIFI_NRF71 */
 	status = nrf_wifi_rt_fmac_rf_params_get(
 			ctx->rpu_ctx,
 			(struct nrf_wifi_phy_rf_params *)conf_params->rf_params);
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
 		goto out;
 	}
+#endif /* !WIFI_NRF71 */
+#endif /* !NRF71_ON_IPC */
 
 	conf_params->tx_pkt_nss = 1;
 	conf_params->tx_pkt_gap_us = 0;
