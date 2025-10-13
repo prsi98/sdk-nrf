@@ -229,6 +229,37 @@ out:
 	return ret;
 }
 
+static bool check_valid_chan_6g(unsigned char chan_num)
+{
+	if ((chan_num == 1) ||
+	    (chan_num == 5) ||
+	    (chan_num == 9) ||
+	    (chan_num == 13) ||
+	    (chan_num == 17) ||
+	    (chan_num == 21) ||
+	    (chan_num == 25) ||
+	    (chan_num == 29) ||
+	    (chan_num == 33) ||
+	    (chan_num == 37) ||
+	    (chan_num == 41) ||
+	    (chan_num == 45) ||
+	    (chan_num == 49) ||
+	    (chan_num == 53) ||
+	    (chan_num == 57) ||
+	    (chan_num == 61) ||
+	    (chan_num == 65) ||
+	    (chan_num == 69) ||
+	    (chan_num == 73) ||
+	    (chan_num == 77) ||
+	    (chan_num == 81) ||
+	    (chan_num == 85) ||
+	    (chan_num == 89) ||
+	    (chan_num == 93)) {
+		return true;
+	}
+
+	return false;
+}
 
 static int check_channel_settings(const struct shell *shell,
 				  unsigned char tput_mode,
@@ -1163,13 +1194,46 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 	char *ptr = NULL;
 	unsigned long val = 0;
 
-	val = strtoul(argv[1], &ptr, 10);
+	unsigned long band, chan_num = 0;
 
-	if (!(check_valid_channel(val))) {
+	band = strtoul(argv[1], &ptr, 10);
+	chan_num = strtoul(argv[2], &ptr, 10);
+
+	switch (band) {
+	case WIFI_FREQ_BAND_2_4_GHZ:
+		if (!check_valid_chan_2g(chan_num)) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "Invalid channel number %lu on 2G band\n",
+				      chan_num);
+			return -ENOEXEC;
+		}
+	break;
+#ifndef CONFIG_NRF70_2_4G_ONLY
+	case WIFI_FREQ_BAND_5_GHZ:
+		if (!check_valid_chan_5g(chan_num)) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "Invalid channel number %lu on 5G band\n",
+				      chan_num);
+			return -ENOEXEC;
+		}
+	break;
+	case WIFI_FREQ_BAND_6_GHZ:
+		if (!check_valid_chan_6g(chan_num)) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "Invalid channel number %lu on 5G band\n",
+				      chan_num);
+			return -ENOEXEC;
+		}
+	break;
+#endif /* CONFIG_NRF70_2_4G_ONLY */
+	default:
 		shell_fprintf(shell,
 			      SHELL_ERROR,
-			      "Invalid value %lu\n",
-			      val);
+			      "Invalid band %lu\n",
+			      band);
 		return -ENOEXEC;
 	}
 
@@ -1249,7 +1313,8 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 		return -ENOEXEC;
 	}
 
-	ctx->conf_params.chan.primary_num = val;
+	ctx->conf_params.chan.op_band = band;
+	ctx->conf_params.chan.primary_num = chan_num;
 
 	status = nrf_wifi_rt_fmac_radio_test_init(ctx->rpu_ctx,
 					       &ctx->conf_params);
@@ -2066,7 +2131,8 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
-		      "init = %d\n",
+		      "init = op_band(%d) channel(%d)\n",
+		      conf_params->chan.op_band,
 		      conf_params->chan.primary_num);
 
 	shell_fprintf(shell,
@@ -2467,9 +2533,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      0),
 	SHELL_CMD_ARG(init,
 		      NULL,
+		      "<val> - Band\n"
 		      "<val> - Primary channel number",
 		      nrf_wifi_radio_test_init,
-		      2,
+		      3,
 		      0),
 	SHELL_CMD_ARG(tx,
 		      NULL,

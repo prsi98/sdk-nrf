@@ -17,6 +17,7 @@
 #include <host_rpu_sys_if.h>
 #include <radio_test/fmac_structs.h>
 #include <zephyr/drivers/wifi/nrf_wifi/bus/rpu_hw_if.h>
+#include <zephyr/net/wifi.h>
 
 struct nrf_wifi_ctx_zep_rt {
 	struct nrf_wifi_fmac_priv *fmac_priv;
