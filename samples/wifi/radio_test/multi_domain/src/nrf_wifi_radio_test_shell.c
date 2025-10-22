@@ -1397,7 +1397,7 @@ static int nrf_wifi_radio_test_set_tx(const struct shell *shell,
 				      "Invalid channel settings\n");
 			return -ENOEXEC;
 		}
-
+#ifndef WIFI_NRF71
 		/** Max TX power values differ based on the test being performed.
 		 * For TX EVM Vs Power, Max TX power required is
 		 * "MAX_TX_PWR_RADIO_TEST" (24dB) whereas for testing the
@@ -1414,6 +1414,7 @@ static int nrf_wifi_radio_test_set_tx(const struct shell *shell,
 			(MAX_TX_PWR_RADIO_TEST << 2),
 			sizeof(struct nrf_wifi_tx_pwr_ceil));
 		}
+#endif /* !WIFI_NRF71 */
 	}
 
 	ctx->conf_params.tx = val;
@@ -1922,9 +1923,9 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 			      "XO value programming failed\n");
 		goto out;
 	}
-
+#ifndef WIFI_NRF71
 	ctx->conf_params.rf_params[NRF_WIFI_XO_FREQ_BYTE_OFFSET] = val;
-
+#endif /* !WIFI_NRF71 */
 	ret = 0;
 out:
 	ctx->rf_test_run = false;
@@ -2123,12 +2124,12 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "he_gi = %d\n",
 		      conf_params->he_gi);
-
+#ifndef WIFI_NRF71
 	shell_fprintf(shell,
 		      SHELL_INFO,
 		      "xo_val = %d\n",
 		      conf_params->rf_params[NRF_WIFI_XO_FREQ_BYTE_OFFSET]);
-
+#endif /* WIFI_NRF71 */
 	shell_fprintf(shell,
 		      SHELL_INFO,
 		      "init = op_band(%d) channel(%d)\n",
