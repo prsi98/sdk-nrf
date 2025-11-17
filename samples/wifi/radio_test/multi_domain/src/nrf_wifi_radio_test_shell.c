@@ -349,7 +349,7 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 	ret = nrf_wifi_utils_hex_str_to_val(
 			conf_params->rf_params,
 			NRF_WIFI_RF_PARAMS_SIZE,
-			NRF_WIFI_RT_DEF_RF_PARAMS);
+			NRF_WIFI_DEF_RF_PARAMS);
 	if (ret == -1) {
 
 		/*
