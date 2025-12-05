@@ -274,6 +274,14 @@ static int check_channel_settings(const struct shell *shell,
 			return -1;
 		}
 	} else if (tput_mode == RPU_TPUT_MODE_HT) {
+#ifdef WIFI_NRF71
+		if (chan->op_band == WIFI_FREQ_BAND_6_GHZ) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "HT setting not allowed in 6GHz band\n");
+			return -1;
+		}
+#endif /* WIFI_NRF71 */
 		if (chan->bw != RPU_CH_BW_20) {
 			shell_fprintf(shell,
 				      SHELL_ERROR,
@@ -289,6 +297,14 @@ static int check_channel_settings(const struct shell *shell,
 				      "VHT setting not allowed in 2.4GHz band\n");
 			return -1;
 		}
+#ifdef WIFI_NRF71
+		if (chan->op_band == WIFI_FREQ_BAND_6_GHZ) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "VHT setting not allowed in 6GHz band\n");
+			return -1;
+		}
+#endif /* WIFI_NRF71 */
 
 		if (chan->bw != RPU_CH_BW_20) {
 			shell_fprintf(shell,
@@ -1223,7 +1239,7 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 		if (!check_valid_chan_6g(chan_num)) {
 			shell_fprintf(shell,
 				      SHELL_ERROR,
-				      "Invalid channel number %lu on 5G band\n",
+				      "Invalid channel number %lu on 6G band\n",
 				      chan_num);
 			return -ENOEXEC;
 		}
