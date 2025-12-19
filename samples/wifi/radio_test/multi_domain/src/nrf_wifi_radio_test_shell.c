@@ -2020,6 +2020,208 @@ static int nrf_wifi_radio_test_set_edge_bo(const struct shell *shell,
 	return 0;
 }
 
+#ifdef WIFI_NRF71
+static int nrf_wifi_radio_test_set_rx_bss_color(const struct shell *shell,
+						size_t argc,
+						const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long rx_bss_color = 0;
+
+	rx_bss_color = strtoul(argv[1], &ptr, 10);
+
+	if ((rx_bss_color < 0) || (rx_bss_color > 63)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid rx bss color setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.rx_bss_color = rx_bss_color;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_rx_station_id(const struct shell *shell,
+						 size_t argc,
+						 const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long rx_station_id = 0;
+
+	rx_station_id = strtoul(argv[1], &ptr, 10);
+
+	if ((rx_station_id < 0) || (rx_station_id > 63)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid rx station id setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.rx_station_id = rx_station_id;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_dcm(const struct shell *shell,
+					  size_t argc,
+					  const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_dcm = 0;
+
+	tx_dcm = strtoul(argv[1], &ptr, 10);
+
+	if ((tx_dcm < 0) || (tx_dcm > 2)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx dcm setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_dcm = tx_dcm;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_doppler(const struct shell *shell,
+					      size_t argc,
+					      const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_doppler = 0;
+
+	tx_doppler = strtoul(argv[1], &ptr, 10);
+
+	if ((tx_doppler < 0) || (tx_doppler > 1)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx doppler setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_doppler = tx_doppler;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_midample_periodicity(const struct shell *shell,
+							   size_t argc,
+							   const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_midample_periodicity = 0;
+
+	tx_midample_periodicity = strtoul(argv[1], &ptr, 10);
+
+	if ((tx_midample_periodicity != 10) || (tx_midample_periodicity != 20)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx midample periodicity setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_midample_periodicity = tx_midample_periodicity;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_106_tone(const struct shell *shell,
+					       size_t argc,
+					       const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_106_tone = 0;
+
+	tx_106_tone = strtoul(argv[1], &ptr, 10);
+
+	if ((tx_106_tone < 0) || (tx_106_tone > 2)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx 106 tone setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_106_tone = tx_106_tone;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_legacy_length(const struct shell *shell,
+						    size_t argc,
+						    const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_legacy_length = 0;
+
+	tx_legacy_length = strtoul(argv[1], &ptr, 10);
+
+	if ((tx_legacy_length < 0) || (tx_legacy_length > 4096)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx legacy length setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_legacy_length = tx_legacy_length;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_fec_padd_factor(const struct shell *shell,
+						      size_t argc,
+						      const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_fec_padd_factor = 0;
+
+	tx_fec_padd_factor = strtoul(argv[1], &ptr, 10);
+
+	if ((tx_fec_padd_factor < 0) || (tx_fec_padd_factor > 4)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx fec padding factor setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_fec_padd_factor = tx_fec_padd_factor;
+
+	return 0;
+}
+#endif
+
 static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 					size_t argc,
 					const char *argv[])
@@ -2208,7 +2410,47 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "ru_index = %d\n",
 		      conf_params->ru_index);
+#ifdef WIFI_NRF71
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "rx_bss_color = %d\n",
+		      conf_params->rx_bss_color);
 
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "rx_station_id = %d\n",
+		      conf_params->rx_station_id);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_dcm = %d\n",
+		      conf_params->tx_dcm);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_doppler = %d\n",
+		      conf_params->tx_doppler);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_midample_periodicity = %d\n",
+		      conf_params->tx_midample_periodicity);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_106_tone = %d\n",
+		      conf_params->tx_106_tone);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_legacy_length = %d\n",
+		      conf_params->tx_legacy_length);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_fec_padd_factor = %d\n",
+		      conf_params->tx_fec_padd_factor);
+#endif
 	return 0;
 }
 
@@ -2717,6 +2959,56 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_edge_bo,
 		      2,
 		      0),
+#ifdef WIFI_NRF71
+	SHELL_CMD_ARG(rx_bss_color,
+		      NULL,
+		      "<val> - bss color (1 to 63)",
+		      nrf_wifi_radio_test_set_rx_bss_color,
+		      2,
+		      0),
+	SHELL_CMD_ARG(rx_station_id,
+		      NULL,
+		      "<val> - station id (1 to 2047)",
+		      nrf_wifi_radio_test_set_rx_station_id,
+		      2,
+		      0),
+	SHELL_CMD_ARG(tx_dcm,
+		      NULL,
+		      "<val> - dcm (0 or 1)",
+		      nrf_wifi_radio_test_set_tx_dcm,
+		      2,
+		      0),
+	SHELL_CMD_ARG(tx_doppler,
+		      NULL,
+		      "<val> - doppler (0 or 1)",
+		      nrf_wifi_radio_test_set_tx_doppler,
+		      2,
+		      0),
+	SHELL_CMD_ARG(tx_midample_periodicity,
+		      NULL,
+		      "<val> - dcm (10 or 20)",
+		      nrf_wifi_radio_test_set_tx_midample_periodicity,
+		      2,
+		      0),
+	SHELL_CMD_ARG(tx_106_tone,
+		      NULL,
+		      "<val> - 106_tone (0 or 1)",
+		      nrf_wifi_radio_test_set_tx_106_tone,
+		      2,
+		      0),
+	SHELL_CMD_ARG(tx_legacy_length,
+		      NULL,
+		      "<val> - legacy_length (upto 4095)",
+		      nrf_wifi_radio_test_set_tx_legacy_length,
+		      2,
+		      0),
+	SHELL_CMD_ARG(tx_fec_padd_factor,
+		      NULL,
+		      "<val> - fec padding factor(1,2,3,4)",
+		      nrf_wifi_radio_test_set_tx_fec_padd_factor,
+		      2,
+		      0),
+#endif
 	SHELL_SUBCMD_SET_END);
 
 
