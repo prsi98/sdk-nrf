@@ -2220,6 +2220,36 @@ static int nrf_wifi_radio_test_set_tx_fec_padd_factor(const struct shell *shell,
 
 	return 0;
 }
+static int nrf_wifi_radio_test_set_tx_pkt_fec_coding(const struct shell *shell,
+						     size_t argc,
+						     const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_pkt_fec_coding = 0;
+
+	tx_pkt_fec_coding = strtoul(argv[1], &ptr, 10);
+
+	/* Valid values:
+	 * 0 -> BCC
+	 * 1 -> LDPC
+	 */
+	if (tx_pkt_fec_coding > 1) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx packet FEC coding setting "
+			      "(0=BCC, 1=LDPC)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_pkt_fec_coding =
+		(unsigned char)tx_pkt_fec_coding;
+
+	return 0;
+}
 #endif
 
 static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
