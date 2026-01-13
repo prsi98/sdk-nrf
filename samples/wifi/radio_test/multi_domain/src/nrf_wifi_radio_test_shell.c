@@ -1192,7 +1192,7 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	char *ptr = NULL;
-	unsigned long val = 0;
+	//unsigned long val = 0;
 
 	unsigned long band, chan_num = 0;
 
@@ -2121,16 +2121,16 @@ static int nrf_wifi_radio_test_set_tx_doppler(const struct shell *shell,
 	return 0;
 }
 
-static int nrf_wifi_radio_test_set_tx_midample_periodicity(const struct shell *shell,
+static int nrf_wifi_radio_test_set_tx_midamble_periodicity(const struct shell *shell,
 							   size_t argc,
 							   const char *argv[])
 {
 	char *ptr = NULL;
-	unsigned long tx_midample_periodicity = 0;
+	unsigned long tx_midamble_periodicity = 0;
 
-	tx_midample_periodicity = strtoul(argv[1], &ptr, 10);
+	tx_midamble_periodicity = strtoul(argv[1], &ptr, 10);
 
-	if ((tx_midample_periodicity != 10) || (tx_midample_periodicity != 20)) {
+	if ((tx_midamble_periodicity != 10) && (tx_midamble_periodicity != 20)) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
 			      "Invalid tx midample periodicity setting\n");
@@ -2141,7 +2141,7 @@ static int nrf_wifi_radio_test_set_tx_midample_periodicity(const struct shell *s
 		return -ENOEXEC;
 	}
 
-	ctx->conf_params.tx_midample_periodicity = tx_midample_periodicity;
+	ctx->conf_params.tx_midamble_periodicity = tx_midamble_periodicity;
 
 	return 0;
 }
@@ -2220,23 +2220,61 @@ static int nrf_wifi_radio_test_set_tx_fec_padd_factor(const struct shell *shell,
 
 	return 0;
 }
-static int nrf_wifi_radio_test_set_tx_pkt_fec_coding(const struct shell *shell,
-						     size_t argc,
-						     const char *argv[])
+
+static int nrf_wifi_radio_test_set_tx_num_he_ltf(const struct shell *shell,
+						 size_t argc,
+						 const char *argv[])
 {
 	char *ptr = NULL;
-	unsigned long tx_pkt_fec_coding = 0;
+	unsigned long tx_num_he_ltf = 0;
 
-	tx_pkt_fec_coding = strtoul(argv[1], &ptr, 10);
+	tx_num_he_ltf = strtoul(argv[1], &ptr, 10);
 
-	/* Valid values:
+	/*
+	 * Valid encoding for NUM-HE-LTF (802.11ax, Table 27-20):
+	 * 0 -> 1 HE-LTF symbol
+	 * 1 -> 2 HE-LTF symbols
+	 * 2 -> 4 HE-LTF symbols
+	 * 3 -> 6 HE-LTF symbols
+	 * 4 -> 8 HE-LTF symbols
+	 * Other values are reserved
+	 */
+	if (tx_num_he_ltf > 4) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid tx_num_he_ltf value "
+			      "(0=1LTF, 1=2LTF, 2=4LTF, 3=6LTF, 4=8LTF)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_num_he_ltf =
+		(unsigned char)tx_num_he_ltf;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_fec_coding(const struct shell *shell,
+						 size_t argc,
+						 const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long tx_fec_coding = 0;
+
+	tx_fec_coding = strtoul(argv[1], &ptr, 10);
+
+	/*
+	 * FEC coding:
 	 * 0 -> BCC
 	 * 1 -> LDPC
 	 */
-	if (tx_pkt_fec_coding > 1) {
+	if (tx_fec_coding > 1) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
-			      "Invalid tx packet FEC coding setting "
+			      "Invalid FEC coding value "
 			      "(0=BCC, 1=LDPC)\n");
 		return -ENOEXEC;
 	}
@@ -2246,7 +2284,7 @@ static int nrf_wifi_radio_test_set_tx_pkt_fec_coding(const struct shell *shell,
 	}
 
 	ctx->conf_params.tx_pkt_fec_coding =
-		(unsigned char)tx_pkt_fec_coding;
+		(unsigned char)tx_fec_coding;
 
 	return 0;
 }
@@ -2463,8 +2501,8 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
-		      "tx_midample_periodicity = %d\n",
-		      conf_params->tx_midample_periodicity);
+		      "tx_midamble_periodicity = %d\n",
+		      conf_params->tx_midamble_periodicity);
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
@@ -3014,10 +3052,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_tx_doppler,
 		      2,
 		      0),
-	SHELL_CMD_ARG(tx_midample_periodicity,
+	SHELL_CMD_ARG(tx_midamble_periodicity,
 		      NULL,
-		      "<val> - dcm (10 or 20)",
-		      nrf_wifi_radio_test_set_tx_midample_periodicity,
+		      "<val> - tx_midamble_periodicity (10 or 20)",
+		      nrf_wifi_radio_test_set_tx_midamble_periodicity,
 		      2,
 		      0),
 	SHELL_CMD_ARG(tx_106_tone,
@@ -3038,6 +3076,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_tx_fec_padd_factor,
 		      2,
 		      0),
+	SHELL_CMD_ARG(tx_num_he_ltf,
+		      NULL,
+		      "<val> - tx_num_he_ltf (0=1LTF, 1=2LTF, 2=4LTF, 3=6LTF, 4=8LTF)",
+		      nrf_wifi_radio_test_set_tx_num_he_ltf,
+		      2,
+		      0),
+    SHELL_CMD_ARG(tx_fec_coding,
+            NULL,
+            "<val> -Set TX FEC coding (0=BCC, 1=LDPC)",
+            nrf_wifi_radio_test_set_tx_fec_coding,
+            2,
+            0),
 #endif
 	SHELL_SUBCMD_SET_END);
 
