@@ -2121,16 +2121,16 @@ static int nrf_wifi_radio_test_set_tx_doppler(const struct shell *shell,
 	return 0;
 }
 
-static int nrf_wifi_radio_test_set_tx_midamble_periodicity(const struct shell *shell,
+static int nrf_wifi_radio_test_set_tx_midample_periodicity(const struct shell *shell,
 							   size_t argc,
 							   const char *argv[])
 {
 	char *ptr = NULL;
-	unsigned long tx_midamble_periodicity = 0;
+	unsigned long tx_midample_periodicity = 0;
 
-	tx_midamble_periodicity = strtoul(argv[1], &ptr, 10);
+	tx_midample_periodicity = strtoul(argv[1], &ptr, 10);
 
-	if ((tx_midamble_periodicity != 10) && (tx_midamble_periodicity != 20)) {
+	if ((tx_midample_periodicity != 10) && (tx_midample_periodicity != 20)) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
 			      "Invalid tx midample periodicity setting\n");
@@ -2141,7 +2141,7 @@ static int nrf_wifi_radio_test_set_tx_midamble_periodicity(const struct shell *s
 		return -ENOEXEC;
 	}
 
-	ctx->conf_params.tx_midamble_periodicity = tx_midamble_periodicity;
+	ctx->conf_params.tx_midample_periodicity = tx_midample_periodicity;
 
 	return 0;
 }
@@ -2251,7 +2251,7 @@ static int nrf_wifi_radio_test_set_tx_num_he_ltf(const struct shell *shell,
 		return -ENOEXEC;
 	}
 
-	ctx->conf_params.tx_num_he_ltf =
+	ctx->conf_params.he_ltf =
 		(unsigned char)tx_num_he_ltf;
 
 	return 0;
@@ -2501,8 +2501,8 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
-		      "tx_midamble_periodicity = %d\n",
-		      conf_params->tx_midamble_periodicity);
+		      "tx_midample_periodicity = %d\n",
+		      conf_params->tx_midample_periodicity);
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
@@ -3052,10 +3052,10 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_tx_doppler,
 		      2,
 		      0),
-	SHELL_CMD_ARG(tx_midamble_periodicity,
+	SHELL_CMD_ARG(tx_midample_periodicity,
 		      NULL,
-		      "<val> - tx_midamble_periodicity (10 or 20)",
-		      nrf_wifi_radio_test_set_tx_midamble_periodicity,
+		      "<val> - tx_midample_periodicity (10 or 20)",
+		      nrf_wifi_radio_test_set_tx_midample_periodicity,
 		      2,
 		      0),
 	SHELL_CMD_ARG(tx_106_tone,
