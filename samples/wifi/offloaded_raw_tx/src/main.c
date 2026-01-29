@@ -180,6 +180,9 @@ int main(void)
 	conf.period_us = CONFIG_BEACON_INTERVAL * USEC_PER_MSEC;
 	conf.tx_pwr = 15;
 	conf.chan = 1;
+#ifdef CONFIG_WIFI_NRF71
+	conf.band = 0;
+#endif /* CONFIG_NRF_WIFI71 */
 	conf.short_preamble = false;
 	conf.num_retries = 10;
 	conf.tput_mode = TPUT_MODE_LEGACY;
@@ -219,6 +222,10 @@ int main(void)
 	conf.pkt_len = len;
 	conf.tx_pwr = 11;
 	conf.chan = 36;
+#ifdef CONFIG_WIFI_NRF71
+	conf.band = 1;
+#endif /* CONFIG_NRF_WIFI71 */
+
 	conf.short_preamble = false;
 	conf.num_retries = 10;
 	conf.rate = RATE_12M;
