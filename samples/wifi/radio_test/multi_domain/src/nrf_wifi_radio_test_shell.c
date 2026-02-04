@@ -2141,7 +2141,7 @@ static int nrf_wifi_radio_test_set_tx_midample_periodicity(const struct shell *s
 		return -ENOEXEC;
 	}
 
-	ctx->conf_params.tx_midample_periodicity = tx_midample_periodicity;
+	ctx->conf_params.tx_midamble_periodicity = tx_midample_periodicity;
 
 	return 0;
 }
@@ -2502,7 +2502,7 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 	shell_fprintf(shell,
 		      SHELL_INFO,
 		      "tx_midample_periodicity = %d\n",
-		      conf_params->tx_midample_periodicity);
+		      conf_params->tx_midamble_periodicity);
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
