@@ -341,7 +341,22 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 
 #ifndef NRF71_ON_IPC
 #ifdef WIFI_NRF71
+#ifdef PHY_RF_PARAM_GDRAM
+	status = nrf_wifi_fmac_config_rf_params(ctx->rpu_ctx,
+                                                &conf_params->rf_params_addr[0]);
+        if (status != NRF_WIFI_STATUS_SUCCESS) {
+                goto out;
+        }
 
+        status = nrf_wifi_fmac_config_vtf_params(ctx->rpu_ctx,
+                                                 243,
+                                                 25,
+                                                 0,
+					 	 &conf_params->vtf_buffer_addr);
+        if (status != NRF_WIFI_STATUS_SUCCESS) {
+                goto out;
+        }
+#else
 	nrf_wifi_osal_mem_set(conf_params->rf_params,
 							0x00,
 							NRF_WIFI_RF_PARAMS_SIZE);
@@ -363,6 +378,7 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 	}
 
 	status = NRF_WIFI_STATUS_SUCCESS;
+#endif /* PHY_RF_PARAM_GDRAM */
 #else /* WIFI_NRF71 */
 	status = nrf_wifi_rt_fmac_rf_params_get(
 			ctx->rpu_ctx,
@@ -1312,8 +1328,11 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 			      "Configuration init failed\n");
 		return -ENOEXEC;
 	}
-
+#ifdef WIFI_NRF71
+	ctx->conf_params.chan.op_band = (1 << band);
+#else
 	ctx->conf_params.chan.op_band = band;
+#endif /* WIFI_NRF71 */
 	ctx->conf_params.chan.primary_num = chan_num;
 
 	status = nrf_wifi_rt_fmac_radio_test_init(ctx->rpu_ctx,
@@ -1965,6 +1984,7 @@ out:
 
 	return ret;
 }
+#if (defined(WIFI_NRF71) && !defined(PHY_RF_PARAM_GDRAM)) || defined(WIFI_NRF70)
 
 static int nrf_wifi_radio_test_set_ant_gain(const struct shell *shell,
 					    size_t argc,
@@ -2019,6 +2039,7 @@ static int nrf_wifi_radio_test_set_edge_bo(const struct shell *shell,
 
 	return 0;
 }
+#endif
 
 #ifdef WIFI_NRF71
 static int nrf_wifi_radio_test_set_rx_bss_color(const struct shell *shell,
@@ -3015,6 +3036,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_bypass_reg,
 		      2,
 		      0),
+#if (defined(WIFI_NRF71) && !defined(PHY_RF_PARAM_GDRAM)) || defined(WIFI_NRF70)
 	SHELL_CMD_ARG(set_ant_gain,
 		      NULL,
 		      "<val> - Antenna gain in dB (Min: 0, Max: 6)",
@@ -3027,6 +3049,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_edge_bo,
 		      2,
 		      0),
+#endif
 #ifdef WIFI_NRF71
 	SHELL_CMD_ARG(rx_bss_color,
 		      NULL,
