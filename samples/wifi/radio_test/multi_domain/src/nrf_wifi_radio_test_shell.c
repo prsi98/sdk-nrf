@@ -1996,11 +1996,20 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 {
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	char *ptr = NULL;
-	unsigned long val = 0;
+	long val = 0;
 	int ret = -ENOEXEC;
 
-	val = strtoul(argv[1], &ptr, 10);
+	val = strtol(argv[1], &ptr, 10);
 
+#ifdef WIFI_NRF71
+	if (val > 100 || val < -100) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "XO value must be in the range -100 to 100 (signed PPM)\n");
+		shell_help(shell);
+		goto out;
+	}
+#else
 	if (val > 0x7f) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
@@ -2016,6 +2025,7 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 		shell_help(shell);
 		goto out;
 	}
+#endif
 
 	if (val == 1) {
 		if (!check_test_in_prog(shell)) {
@@ -2027,7 +2037,11 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 	ctx->rf_test = NRF_WIFI_RF_TEST_XO_CALIB;
 
 	status = nrf_wifi_rt_fmac_set_xo_val(ctx->rpu_ctx,
+#ifdef WIFI_NRF71
+					       (signed char)val);
+#else
 					       (unsigned char)val);
+#endif
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
 		shell_fprintf(shell,
@@ -2036,7 +2050,7 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 		goto out;
 	}
 #ifndef WIFI_NRF71
-	ctx->conf_params.rf_params[NRF_WIFI_XO_FREQ_BYTE_OFFSET] = val;
+	ctx->conf_params.rf_params[NRF_WIFI_XO_FREQ_BYTE_OFFSET] = (unsigned char)val;
 #endif /* !WIFI_NRF71 */
 	ret = 0;
 out:
@@ -3115,7 +3129,11 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      0),
 	SHELL_CMD_ARG(set_xo_val,
 		      NULL,
+#ifdef WIFI_NRF71
+		      "<val> - XO value in the range -100 to 100 (signed PPM)",
+#else
 		      "<val> - XO value in the range 0 to 127",
+#endif
 		      nrf_wifi_radio_set_xo_val,
 		      2,
 		      0),
