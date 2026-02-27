@@ -23,6 +23,12 @@
 #define LOCAL_BIT BIT(1)
 #endif /* CONFIG_GENERATE_MAC_ADDRESS */
 
+
+/** operating bands bitmap values */
+#define NRF_WIFI_OP_BAND_2GHZ	(1 << 0)
+#define NRF_WIFI_OP_BAND_5GHZ	(1 << 1)
+#define NRF_WIFI_OP_BAND_6GHZ	(1 << 2)
+
 uint8_t bcn_extra_fields[] = {
 0x03, 0x01, 0x01, 0x05, 0x04, 0x00, 0x01, 0x00, 0x00, 0x07, 0x06, 0x55, 0x53, 0x04, 0x01, 0x0b,
 0x1e, 0x23, 0x02, 0x1c, 0x00, 0x2a, 0x01, 0x04, 0x32, 0x04, 0x0c, 0x12, 0x18, 0x60, 0x0b, 0x05,
@@ -181,7 +187,7 @@ int main(void)
 	conf.tx_pwr = 15;
 	conf.chan = 1;
 #ifdef CONFIG_WIFI_NRF71
-	conf.band = 0;
+	conf.band =  NRF_WIFI_OP_BAND_2GHZ;
 #endif /* CONFIG_NRF_WIFI71 */
 	conf.short_preamble = false;
 	conf.num_retries = 10;
@@ -223,7 +229,7 @@ int main(void)
 	conf.tx_pwr = 11;
 	conf.chan = 36;
 #ifdef CONFIG_WIFI_NRF71
-	conf.band = 1;
+	conf.band = NRF_WIFI_OP_BAND_5GHZ;
 #endif /* CONFIG_NRF_WIFI71 */
 
 	conf.short_preamble = false;
