@@ -2091,6 +2091,205 @@ out:
 
 	return ret;
 }
+
+#ifdef WIFI_NRF71
+static int nrf_wifi_radio_test_perform_rf_calibration(const struct shell *shell,
+						     size_t argc,
+						     const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rf_calib calib_params;
+	char *ptr = NULL;
+	unsigned long calib_bitmap = 0;
+	unsigned long sys_operating_mode = 0;
+	unsigned long result_index = 0;
+	int ret = -ENOEXEC;
+
+	if (argc < 3) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: perform_rf_calibration <calib_bitmap> <sys_operating_mode> <result_index>\n");
+		shell_fprintf(shell,
+			      SHELL_INFO,
+			      "  calib_bitmap: hex (e.g. 0x7F) or decimal; sys_operating_mode: 0=rx_only 1=trx_normal; result_index: 0 or 1 (default 0)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	calib_bitmap = strtoul(argv[1], &ptr, 0);
+	if (calib_bitmap > 0xFF) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "calib_bitmap must be 0-0xFF\n");
+		return -ENOEXEC;
+	}
+
+	sys_operating_mode = strtoul(argv[2], &ptr, 10);
+	if (sys_operating_mode > 1) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "sys_operating_mode must be 0 (rx_only) or 1 (trx_normal)\n");
+		return -ENOEXEC;
+	}
+
+	if (argc >= 4) {
+		result_index = strtoul(argv[3], &ptr, 10);
+		if (result_index > 1) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "result_index must be 0 or 1\n");
+			return -ENOEXEC;
+		}
+	}
+
+	memset(&calib_params, 0, sizeof(calib_params));
+	calib_params.calib_bitmap = (unsigned char)calib_bitmap;
+	calib_params.sys_operating_mode = (unsigned char)sys_operating_mode;
+	calib_params.index = (unsigned char)result_index;
+	calib_params.rf_calib_results = NULL;
+
+	status = nrf_wifi_rt_fmac_rf_test_perform_calib(ctx->rpu_ctx, &calib_params);
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "perform_rf_calibration failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "RF calibration completed (bitmap=0x%02x mode=%lu result_index=%lu)\n",
+		      (unsigned int)calib_bitmap,
+		      sys_operating_mode,
+		      result_index);
+	ret = 0;
+	return ret;
+}
+
+static unsigned char rf_calib_result_buf[CAL_MEM_SIZE];
+
+static int nrf_wifi_radio_test_read_rf_comp_results(const struct shell *shell,
+						   size_t argc,
+						   const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rf_read_calib_results params;
+	char *ptr = NULL;
+	unsigned long mode = 0;
+	unsigned long result_index = 0;
+
+	if (argc < 2) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: read_rf_comp_results <mode> [result_index]\n");
+		shell_fprintf(shell,
+			      SHELL_INFO,
+			      "  mode: 0=operating_channel 1=scan_channel; result_index: 0 or 1 (default 0)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	mode = strtoul(argv[1], &ptr, 10);
+	if (mode > 1) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "mode must be 0 (operating) or 1 (scan)\n");
+		return -ENOEXEC;
+	}
+
+	if (argc >= 3) {
+		result_index = strtoul(argv[2], &ptr, 10);
+		if (result_index > 1) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "result_index must be 0 or 1\n");
+			return -ENOEXEC;
+		}
+	}
+
+	memset(&params, 0, sizeof(params));
+	params.mode = (unsigned char)mode;
+	params.index = (unsigned char)result_index;
+	params.rf_calib_results = rf_calib_result_buf;
+
+	status = nrf_wifi_rt_fmac_rf_test_read_comp_results(ctx->rpu_ctx, &params);
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "read_rf_comp_results failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "RF read comp results completed (mode=%lu result_index=%lu)\n",
+		      mode, result_index);
+	return 0;
+}
+
+static int nrf_wifi_radio_test_apply_rf_compensation(const struct shell *shell,
+						     size_t argc,
+						     const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rf_calib calib_params;
+	char *ptr = NULL;
+	unsigned long result_index = 0;
+
+	if (argc < 2) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: apply_rf_compensation <result_index>\n");
+		shell_fprintf(shell,
+			      SHELL_INFO,
+			      "  result_index: 0 or 1 (slot). Uses in-memory result buffer (%d bytes).\n",
+			      (int)CAL_MEM_SIZE);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	result_index = strtoul(argv[1], &ptr, 10);
+	if (result_index > 1) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "result_index must be 0 or 1\n");
+		return -ENOEXEC;
+	}
+
+	memset(&calib_params, 0, sizeof(calib_params));
+	calib_params.index = (unsigned char)result_index;
+	calib_params.rf_calib_results = NULL;
+
+	status = nrf_wifi_rt_fmac_rf_test_apply_compensation(ctx->rpu_ctx,
+							    &calib_params,
+							    rf_calib_result_buf);
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "apply_rf_compensation failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "RF apply compensation completed (result_index=%lu)\n",
+		      result_index);
+	return 0;
+}
+#endif /* WIFI_NRF71 */
+
 #if (defined(WIFI_NRF71) && !defined(PHY_RF_PARAM_GDRAM)) || defined(WIFI_NRF70)
 
 static int nrf_wifi_radio_test_set_ant_gain(const struct shell *shell,
@@ -3143,6 +3342,26 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_comp_opt_xo_val,
 		      1,
 		      0),
+#ifdef WIFI_NRF71
+	SHELL_CMD_ARG(perform_rf_calibration,
+		      NULL,
+		      "<calib_bitmap> <sys_operating_mode> <result_index>",
+		      nrf_wifi_radio_test_perform_rf_calibration,
+		      3,
+		      1),
+	SHELL_CMD_ARG(read_rf_comp_results,
+		      NULL,
+		      "<mode> [result_index] - Read comp results into buffer (mode: 0=operating 1=scan; index 0 or 1)",
+		      nrf_wifi_radio_test_read_rf_comp_results,
+		      2,
+		      1),
+	SHELL_CMD_ARG(apply_rf_compensation,
+		      NULL,
+		      "<result_index> - Apply calibration from in-memory result buffer (0 or 1)",
+		      nrf_wifi_radio_test_apply_rf_compensation,
+		      2,
+		      0),
+#endif
 	SHELL_CMD_ARG(show_config,
 		      NULL,
 		      "Display the current configuration values",
