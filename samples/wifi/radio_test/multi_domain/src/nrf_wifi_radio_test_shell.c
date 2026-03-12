@@ -19,6 +19,14 @@
 extern struct nrf_wifi_drv_priv_zep rpu_drv_priv_zep;
 struct nrf_wifi_ctx_zep *ctx = &rpu_drv_priv_zep.rpu_ctx_zep;
 
+#ifdef WIFI_NRF71
+#ifdef PHY_RF_PARAM_GDRAM
+static unsigned int vtf_voltage = 243;
+static unsigned int vtf_temp = 25;
+static unsigned int vtf_x0 = 0;
+#endif
+#endif
+
 #define NRF_WIFI_RADIO_TEST_INIT_TIMEOUT_MS 5000
 
 static bool check_test_in_prog(const struct shell *shell)
@@ -349,9 +357,9 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
         }
 
         status = nrf_wifi_fmac_config_vtf_params(ctx->rpu_ctx,
-                                                 243,
-                                                 25,
-                                                 0,
+                                                 vtf_voltage,
+                                                 vtf_temp,
+                                                 vtf_x0,
 					 	 &conf_params->vtf_buffer_addr);
         if (status != NRF_WIFI_STATUS_SUCCESS) {
                 goto out;
@@ -1282,6 +1290,53 @@ static int nrf_wifi_radio_test_set_ru_index(const struct shell *shell,
 	return 0;
 }
 
+#ifdef WIFI_NRF71
+static int nrf_wifi_radio_test_config_vtf_params(const struct shell *shell,
+						 size_t argc,
+						 const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long voltage, temp;
+	long x0_signed;
+
+	if (argc < 4) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: config_vtf_params <voltage> <temp> <x0_freq>\n");
+		return -ENOEXEC;
+	}
+
+#ifndef PHY_RF_PARAM_GDRAM
+	shell_fprintf(shell,
+		      SHELL_ERROR,
+		      "config_vtf_params not available\n");
+	return -ENOTSUP;
+#else
+	voltage = strtoul(argv[1], &ptr, 10);
+	temp = strtoul(argv[2], &ptr, 10);
+	x0_signed = strtol(argv[3], &ptr, 10);
+
+	if (x0_signed < -128 || x0_signed > 127) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "x0_freq must be -128..127\n");
+		return -EINVAL;
+	}
+
+	vtf_voltage = (unsigned int)voltage;
+	vtf_temp = (unsigned int)temp;
+	vtf_x0 = (unsigned int)(signed char)x0_signed;
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "VTF params set: voltage=%u temp=%u x0_freq=%ld\n",
+		      vtf_voltage,
+		      vtf_temp,
+		      x0_signed);
+	return 0;
+#endif
+}
+#endif
 
 static int nrf_wifi_radio_test_init(const struct shell *shell,
 				    size_t argc,
@@ -2832,111 +2887,6 @@ static int nrf_wifi_radio_test_set_tx_fec_coding(const struct shell *shell,
 
 	return 0;
 }
-
-static int nrf_wifi_radio_test_rh_oneshot(const struct shell *shell,
-					 size_t argc,
-					 const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rh_test_params rh_params;
-	char *ptr = NULL;
-	unsigned long period = 0;
-	long range_start = 0;
-	long range_end = 0;
-
-	if (argc < 4) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Usage: rh_oneshot <hist_type> <stat_type> <period> <range_start> <range_end>\n");
-		return -ENOEXEC;
-	}
-	if ((strcmp(argv[1], "unconditional") != 0) && (strcmp(argv[1], "pkt_only") != 0) && (strcmp(argv[1], "noise_only") != 0)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Invalid hist_type. Use 'unconditional', 'pkt_only' or 'noise_only'\n");
-		return -ENOEXEC;
-	}
-	if ((strcmp(argv[2], "all") != 0) && (strcmp(argv[2], "max") != 0) && (strcmp(argv[2], "range") != 0)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Invalid stat_type. Use 'all', 'max' or 'range'\n");
-		return -ENOEXEC;
-	}
-
-	period = strtoul(argv[3], &ptr, 10);
-
-	if ((period < 0) || (period > 10)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Invalid time period. value in seconds with max duration of 10 seconds\n");
-		return -ENOEXEC;
-	}
-	if ((strcmp(argv[2], "range") == 0) && (argc < 6)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Range start and end values must be provided when stat_type is 'range'\n");
-		return -ENOEXEC;
-	}
-	if (strcmp(argv[2], "range") == 0)
-	{
-		shell_fprintf(shell,
-					SHELL_INFO,
-					" command: %s %s %s %s %s\n",
-					argv[1],
-					argv[2],
-					argv[3],
-					argv[4],
-					argv[5]);
-		range_start = strtol(argv[4], &ptr, 10);
-		range_end = strtol(argv[5], &ptr, 10);
-		if ((range_start < -100) || (range_start > 0) || (range_end < -100) || (range_end > 0) || (range_start >= range_end)) {
-			shell_fprintf(shell,
-						SHELL_ERROR,
-						"Invalid range values. Range start and end should be in dBm with valid range from -100 to 0 and start value should be less than end value\n");
-			return -ENOEXEC;
-		}
-	}
-	else
-	{
-		shell_fprintf(shell,
-					SHELL_INFO,
-					" command: %s %s %s\n",
-					argv[1],
-					argv[2],
-					argv[3]);
-	}
-	rh_params.test = NRF_WIFI_RH_ONESHOT;
-	/* enable rssi histogram logic */
-	rh_params.rh_enable = 1;	
-	rh_params.mode = 0; /* oneshot mode */
-	rh_params.hist_type = (strcmp(argv[1], "unconditional") == 0) ? 0 : ((strcmp(argv[1], "pkt_only") == 0) ? 1 : 2);
-	rh_params.stat_type = (strcmp(argv[2], "all") == 0) ? 0 : ((strcmp(argv[2], "max") == 0) ? 1 : 2);
-	rh_params.period = (unsigned char)period;
-	rh_params.range_start = (char)range_start;
-	rh_params.range_end = (char)range_end;
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	ctx->rf_test_run = true;
-	ctx->rf_test = NRF_WIFI_RH_ONESHOT;
-
-	status = nrf_wifi_rt_fmac_rf_test_rh_oneshot(ctx->rpu_ctx,
-						 &rh_params);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "RH test start failed\n");
-		return -ENOEXEC;
-	}
-
-	ctx->rf_test_run = false;
-	ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
-
-	return 0;
-}
-
 #endif
 
 static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
@@ -3443,6 +3393,12 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_phy_debug_stats,
 		      1,
 		      0),
+	SHELL_CMD_ARG(config_vtf_params,
+		      NULL,
+		      "<voltage> <temp> <x0_freq> - x0 signed 8-bit, use before init",
+		      nrf_wifi_radio_test_config_vtf_params,
+		      4,
+		      0),
 #endif
 	SHELL_CMD_ARG(he_ltf,
 		      NULL,
@@ -3817,12 +3773,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
             nrf_wifi_radio_test_set_tx_fec_coding,
             2,
             0),
-    SHELL_CMD_ARG(rh_oneshot,
-			  NULL,
-			  "Start RH oneshot testing",
-			  nrf_wifi_radio_test_rh_oneshot,
-			  4,
-			  2),
 #endif
 	SHELL_SUBCMD_SET_END);
 
