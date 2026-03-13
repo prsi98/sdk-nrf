@@ -2423,6 +2423,73 @@ static int nrf_wifi_radio_test_set_calib_regs(const struct shell *shell,
 	return 0;
 }
 
+static int nrf_wifi_radio_test_enable_vt_calib(const struct shell *shell,
+	size_t argc,
+	const char *argv[])
+{
+enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+char *ptr = NULL;
+unsigned long val = 0;
+int ret = -ENOEXEC;
+
+if (argc < 2) {
+shell_fprintf(shell, SHELL_ERROR, "Usage: enable_vt_calib <0|1>\n");
+return -ENOEXEC;
+}
+
+val = strtoul(argv[1], &ptr, 10);
+if (val > 1) {
+shell_fprintf(shell, SHELL_ERROR, "Invalid value %lu (use 0 or 1)\n", val);
+return -ENOEXEC;
+}
+
+if (!check_test_in_prog(shell)) {
+return -ENOEXEC;
+}
+
+status = nrf_wifi_rt_fmac_rf_test_enable_vt_calibration(ctx->rpu_ctx, (unsigned char)val);
+if (status != NRF_WIFI_STATUS_SUCCESS) {
+shell_fprintf(shell, SHELL_ERROR, "enable_vt_calib failed\n");
+return -ENOEXEC;
+}
+
+shell_fprintf(shell, SHELL_INFO, "VT calibration %s\n", val ? "enabled" : "disabled");
+return 0;
+}
+
+static int nrf_wifi_radio_test_enable_vt_comp(const struct shell *shell,
+					      size_t argc,
+					      const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	char *ptr = NULL;
+	unsigned long val = 0;
+
+	if (argc < 2) {
+		shell_fprintf(shell, SHELL_ERROR, "Usage: enable_vt_comp <0|1>\n");
+		return -ENOEXEC;
+	}
+
+	val = strtoul(argv[1], &ptr, 10);
+	if (val > 1) {
+		shell_fprintf(shell, SHELL_ERROR, "Invalid value %lu (use 0 or 1)\n", val);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	status = nrf_wifi_rt_fmac_rf_test_enable_vt_compensation(ctx->rpu_ctx, (unsigned char)val);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "enable_vt_comp failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell, SHELL_INFO, "VT compensation %s\n", val ? "enabled" : "disabled");
+	return 0;
+}
+
 static int nrf_wifi_radio_test_rf_patch_settings(const struct shell *shell,
 						size_t argc,
 						const char *argv[])
@@ -3398,6 +3465,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "<voltage> <temp> <x0_freq> - x0 signed 8-bit, use before init",
 		      nrf_wifi_radio_test_config_vtf_params,
 		      4,
+		      0),
+	SHELL_CMD_ARG(enable_vt_calib,
+		      NULL,
+		      "<0|1> - Disable or enable VT calibration",
+		      nrf_wifi_radio_test_enable_vt_calib,
+		      2,
+		      0),
+	SHELL_CMD_ARG(enable_vt_comp,
+		      NULL,
+		      "<0|1> - Disable or enable VT compensation",
+		      nrf_wifi_radio_test_enable_vt_comp,
+		      2,
 		      0),
 #endif
 	SHELL_CMD_ARG(he_ltf,
