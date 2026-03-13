@@ -2490,6 +2490,186 @@ static int nrf_wifi_radio_test_enable_vt_comp(const struct shell *shell,
 	return 0;
 }
 
+static int nrf_wifi_radio_test_set_reg(const struct shell *shell,
+				       size_t argc,
+				       const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rf_config_regs config_regs;
+	char *ptr = NULL;
+	unsigned long num_regs;
+	size_t i;
+
+	/* set_reg <addr1> <val1> [addr2 val2 ...] - max 8 pairs */
+	if (argc < 3 || (argc - 1) % 2 != 0) {
+		shell_fprintf(shell, SHELL_ERROR,
+			      "Usage: set_reg <addr1> <val1> [addr2 val2 ...] (1..%d pairs)\n",
+			      MAX_REGS_CONF);
+		return -ENOEXEC;
+	}
+
+	num_regs = (argc - 1) / 2;
+	if (num_regs > MAX_REGS_CONF) {
+		shell_fprintf(shell, SHELL_ERROR, "Max %d regs\n", MAX_REGS_CONF);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	memset(&config_regs, 0, sizeof(config_regs));
+	config_regs.num_regs = (unsigned char)num_regs;
+	for (i = 0; i < num_regs; i++) {
+		config_regs.reg_addr[i] = (unsigned int)strtoul(argv[1 + i * 2], &ptr, 0);
+		config_regs.reg_val[i] = (unsigned int)strtoul(argv[2 + i * 2], &ptr, 0);
+	}
+
+	status = nrf_wifi_rt_fmac_rf_test_set_regs(ctx->rpu_ctx, &config_regs);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "set_reg failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell, SHELL_INFO, "set_reg %lu regs done\n", (unsigned long)num_regs);
+	return 0;
+}
+
+static int nrf_wifi_radio_test_read_reg(const struct shell *shell,
+					size_t argc,
+					const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rf_config_regs config_regs;
+	char *ptr = NULL;
+	size_t i;
+
+	/* read_reg <addr1> [addr2 ...] - max 8 addrs */
+	if (argc < 2) {
+		shell_fprintf(shell, SHELL_ERROR,
+			      "Usage: read_reg <addr1> [addr2 ...] (1..%d addrs)\n",
+			      MAX_REGS_CONF);
+		return -ENOEXEC;
+	}
+
+	if ((size_t)(argc - 1) > MAX_REGS_CONF) {
+		shell_fprintf(shell, SHELL_ERROR, "Max %d regs\n", MAX_REGS_CONF);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	memset(&config_regs, 0, sizeof(config_regs));
+	config_regs.num_regs = (unsigned char)(argc - 1);
+	for (i = 0; i < (size_t)config_regs.num_regs; i++) {
+		config_regs.reg_addr[i] = (unsigned int)strtoul(argv[1 + i], &ptr, 0);
+	}
+
+	status = nrf_wifi_rt_fmac_rf_test_read_regs(ctx->rpu_ctx, &config_regs);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "read_reg failed\n");
+		return -ENOEXEC;
+	}
+
+	for (i = 0; i < (size_t)config_regs.num_regs; i++) {
+		shell_fprintf(shell, SHELL_INFO, "0x%x = 0x%x\n",
+			      config_regs.reg_addr[i], config_regs.reg_val[i]);
+	}
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_memory(const struct shell *shell,
+					  size_t argc,
+					  const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rf_config_mem config_mem;
+	char *ptr = NULL;
+	unsigned long num_loc;
+	size_t i;
+
+	/* set_memory <addr1> <val1> [addr2 val2 ...] - max 8 pairs */
+	if (argc < 3 || (argc - 1) % 2 != 0) {
+		shell_fprintf(shell, SHELL_ERROR,
+			      "Usage: set_memory <addr1> <val1> [addr2 val2 ...] (1..%d pairs)\n",
+			      MAX_MEM_CONF);
+		return -ENOEXEC;
+	}
+
+	num_loc = (argc - 1) / 2;
+	if (num_loc > MAX_MEM_CONF) {
+		shell_fprintf(shell, SHELL_ERROR, "Max %d memory locations\n", MAX_MEM_CONF);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	memset(&config_mem, 0, sizeof(config_mem));
+	config_mem.num_memory_loc = (unsigned char)num_loc;
+	for (i = 0; i < num_loc; i++) {
+		config_mem.mem_addr[i] = (unsigned int)strtoul(argv[1 + i * 2], &ptr, 0);
+		config_mem.mem_val[i] = (unsigned int)strtoul(argv[2 + i * 2], &ptr, 0);
+	}
+
+	status = nrf_wifi_rt_fmac_rf_test_set_mem(ctx->rpu_ctx, &config_mem);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "set_memory failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell, SHELL_INFO, "set_memory %lu locations done\n", (unsigned long)num_loc);
+	return 0;
+}
+
+static int nrf_wifi_radio_test_read_memory(const struct shell *shell,
+					   size_t argc,
+					   const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rf_config_mem config_mem;
+	char *ptr = NULL;
+	size_t i;
+
+	/* read_memory <addr1> [addr2 ...] - max 8 addrs */
+	if (argc < 2) {
+		shell_fprintf(shell, SHELL_ERROR,
+			      "Usage: read_memory <addr1> [addr2 ...] (1..%d addrs)\n",
+			      MAX_MEM_CONF);
+		return -ENOEXEC;
+	}
+
+	if ((size_t)(argc - 1) > MAX_MEM_CONF) {
+		shell_fprintf(shell, SHELL_ERROR, "Max %d memory locations\n", MAX_MEM_CONF);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	memset(&config_mem, 0, sizeof(config_mem));
+	config_mem.num_memory_loc = (unsigned char)(argc - 1);
+	for (i = 0; i < (size_t)config_mem.num_memory_loc; i++) {
+		config_mem.mem_addr[i] = (unsigned int)strtoul(argv[1 + i], &ptr, 0);
+	}
+
+	status = nrf_wifi_rt_fmac_rf_test_read_mem(ctx->rpu_ctx, &config_mem);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "read_memory failed\n");
+		return -ENOEXEC;
+	}
+
+	for (i = 0; i < (size_t)config_mem.num_memory_loc; i++) {
+		shell_fprintf(shell, SHELL_INFO, "0x%x = 0x%x\n",
+			      config_mem.mem_addr[i], config_mem.mem_val[i]);
+	}
+	return 0;
+}
+
 static int nrf_wifi_radio_test_rf_patch_settings(const struct shell *shell,
 						size_t argc,
 						const char *argv[])
@@ -3478,6 +3658,30 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_enable_vt_comp,
 		      2,
 		      0),
+	SHELL_CMD_ARG(set_reg,
+		      NULL,
+		      "<addr1> <val1> [addr2 val2 ...] - Write regs (max 8 pairs)",
+		      nrf_wifi_radio_test_set_reg,
+		      3,
+		      16),
+	SHELL_CMD_ARG(read_reg,
+		      NULL,
+		      "<addr1> [addr2 ...] - Read regs (max 8 addrs)",
+		      nrf_wifi_radio_test_read_reg,
+		      2,
+		      8),
+	SHELL_CMD_ARG(set_memory,
+		      NULL,
+		      "<addr1> <val1> [addr2 val2 ...] - Write memory (max 8 pairs)",
+		      nrf_wifi_radio_test_set_memory,
+		      3,
+		      16),
+	SHELL_CMD_ARG(read_memory,
+		      NULL,
+		      "<addr1> [addr2 ...] - Read memory (max 8 addrs)",
+		      nrf_wifi_radio_test_read_memory,
+		      2,
+		      8),
 #endif
 	SHELL_CMD_ARG(he_ltf,
 		      NULL,
