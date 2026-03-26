@@ -1156,12 +1156,23 @@ static int nrf_wifi_radio_test_set_rx_capture_length(const struct shell *shell,
 
 	val = strtoul(argv[1], &ptr, 10);
 
-	if ((val > MAX_CAPTURE_LEN)  || (val < MIN_CAPTURE_LEN)) {
+#ifdef WIFI_NRF71
+	if ((val > NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES) || (val <= MIN_CAPTURE_LEN)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'capture_length' must be 1..%u "
+			      "(NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES)\n",
+			      (unsigned int)NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES);
+		return -ENOEXEC;
+	}
+#else
+	if ((val > MAX_CAPTURE_LEN) || (val <= MIN_CAPTURE_LEN)) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
 			      "'capture_length' has to be non-zero and less than 16384\n");
 		return -ENOEXEC;
 	}
+#endif
 
 	if (!check_test_in_prog(shell)) {
 		return -ENOEXEC;
@@ -1181,9 +1192,18 @@ static int nrf_wifi_radio_test_set_rx_capture_timeout(const struct shell *shell,
 	val = strtoul(argv[1], &ptr, 10);
 
 	if (val > CAPTURE_DURATION_IN_SEC) {
+#ifdef WIFI_NRF71
 		shell_fprintf(shell,
 			      SHELL_ERROR,
-			      "'capture_timeout' has to be less than 600 seconds\n");
+			      "'capture_timeout' must be 0..%u seconds "
+			      "(CAPTURE_DURATION_IN_SEC)\n",
+			      (unsigned int)CAPTURE_DURATION_IN_SEC);
+#else
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'capture_timeout' must be 0..%u seconds\n",
+			      (unsigned int)CAPTURE_DURATION_IN_SEC);
+#endif
 		return -ENOEXEC;
 	}
 
@@ -1778,19 +1798,34 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 		goto out;
 	}
 
-	rx_cap_buf = nrf_wifi_osal_mem_zalloc((ctx->conf_params.capture_length * 3));
+#ifdef WIFI_NRF71
+
+	rx_cap_buf = nrf_wifi_osal_mem_zalloc((size_t)ctx->conf_params.capture_length * 4U);
+#else
+	rx_cap_buf = nrf_wifi_osal_mem_zalloc((size_t)ctx->conf_params.capture_length * 3U);
+#endif
 
 	if (!rx_cap_buf) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
-			      "%s: Unable to allocate (%d) bytes for RX capture\n",
+			      "%s: Unable to allocate (%u) bytes for RX capture\n",
 			      __func__,
-			      (ctx->conf_params.capture_length * 3));
+#ifdef WIFI_NRF71
+			      (unsigned int)((size_t)ctx->conf_params.capture_length * 4U)
+#else
+			      (unsigned int)((size_t)ctx->conf_params.capture_length * 3U)
+#endif
+			      );
 		goto out;
 	}
 
 	ctx->rf_test_run = true;
-	ctx->rf_test = NRF_WIFI_RF_TEST_RX_ADC_CAP;
+	ctx->rf_test = (enum nrf_wifi_rf_test)rx_cap_type;
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "RX capture RPU staging address: 0x%08X\n",
+		      (unsigned int)RPU_MEM_RF_TEST_CAP_BASE);
 
 	status = nrf_wifi_rt_fmac_rf_test_rx_cap(ctx->rpu_ctx,
 					      rx_cap_type,
@@ -1813,6 +1848,17 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 			      SHELL_INFO,
 			      "\n************* RX capture data ***********\n");
 
+#ifdef WIFI_NRF71
+
+		for (i = 0; i < (ctx->conf_params.capture_length); i++) {
+			unsigned char *p = &rx_cap_buf[i * 4];
+
+			shell_fprintf(shell,
+				      SHELL_INFO,
+				      "%02X%02X%02X%02X\n",
+				      p[3], p[2], p[1], p[0]);
+		}
+#else
 		for (i = 0; i < (ctx->conf_params.capture_length); i++) {
 			shell_fprintf(shell,
 				      SHELL_INFO,
@@ -1821,6 +1867,7 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 				      rx_cap_buf[i*3 + 1],
 				      rx_cap_buf[i*3 + 0]);
 		}
+#endif
 	} else if (capture_status == 1) {
 		shell_fprintf(shell,
 			      SHELL_INFO,
@@ -3845,15 +3892,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      0),
 	SHELL_CMD_ARG(rx_capture_length,
 		      NULL,
-		      "<val> - Number of RX samples to be captured\n"
-		      "Max allowed length is 16384 complex samples",
+		      "<val> - Number of RX samples to be captured (nRF71: NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES)",
 		      nrf_wifi_radio_test_set_rx_capture_length,
 		      2,
 		      0),
 	SHELL_CMD_ARG(rx_capture_timeout,
 		      NULL,
 		      "<val> - Wait time allowed in seconds\n"
-		      "Max timeout allowed is 600 seconds",
+		      "Max timeout in seconds (see shell error for upper bound)",
 		      nrf_wifi_radio_test_set_rx_capture_timeout,
 		      2,
 		      0),
