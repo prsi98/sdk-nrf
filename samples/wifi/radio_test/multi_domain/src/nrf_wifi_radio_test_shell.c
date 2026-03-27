@@ -1216,6 +1216,42 @@ static int nrf_wifi_radio_test_set_rx_capture_timeout(const struct shell *shell,
 	return 0;
 }
 
+#ifdef WIFI_NRF71
+static int nrf_wifi_radio_test_set_rx_capture_ed_thresh(const struct shell *shell,
+							size_t argc,
+							const char *argv[])
+{
+	char *ptr = NULL;
+	long ofdm = 0;
+	long dsss = 0;
+
+	ofdm = strtol(argv[1], &ptr, 10);
+	if (ofdm < -100 || ofdm > 0) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'ed_thresh_ofdm' must be in -100..0\n");
+		return -ENOEXEC;
+	}
+
+	dsss = strtol(argv[2], &ptr, 10);
+	if (dsss < -100 || dsss > 0) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'ed_thresh_dsss' must be in -100..0\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.ed_thresh_ofdm = (unsigned char)((signed char)ofdm);
+	ctx->conf_params.ed_thresh_dsss = (unsigned char)((signed char)dsss);
+
+	return 0;
+}
+#endif /* WIFI_NRF71 */
+
 static int nrf_wifi_radio_test_set_ru_tone(const struct shell *shell,
 					   size_t argc,
 					   const char *argv[])
@@ -1834,6 +1870,10 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 					      ctx->conf_params.capture_timeout,
 					      ctx->conf_params.lna_gain,
 					      ctx->conf_params.bb_gain,
+#ifdef WIFI_NRF71
+					      ctx->conf_params.ed_thresh_ofdm,
+					      ctx->conf_params.ed_thresh_dsss,
+#endif
 					      &capture_status);
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
@@ -2717,6 +2757,96 @@ static int nrf_wifi_radio_test_read_memory(const struct shell *shell,
 	return 0;
 }
 
+#ifdef WIFI_NRF71
+static int nrf_wifi_radio_test_adpll_cap(const struct shell *shell,
+					 size_t argc,
+					 const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	unsigned long enabled = 0;
+	unsigned long enable_tracing = 0;
+	unsigned long cap_len = 0;
+	unsigned char *cap_buf = NULL;
+	unsigned char capture_status = 0;
+	char *ptr = NULL;
+	unsigned int i = 0;
+	int ret = -ENOEXEC;
+
+	if (argc != 4) {
+		shell_fprintf(shell, SHELL_ERROR,
+			      "Usage: adpll_cap <enabled> <enable_tracing> <cap_len>\n"
+			      "  enabled/tracing: 0|1; cap_len: 1..%u\n",
+			      (unsigned int)NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES);
+		return -ENOEXEC;
+	}
+
+	enabled = strtoul(argv[1], &ptr, 10);
+	enable_tracing = strtoul(argv[2], &ptr, 10);
+	cap_len = strtoul(argv[3], &ptr, 10);
+
+	if (enabled > 1 || enable_tracing > 1) {
+		shell_fprintf(shell, SHELL_ERROR, "enabled and enable_tracing must be 0 or 1\n");
+		return -ENOEXEC;
+	}
+	if (cap_len == 0 || cap_len > NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES) {
+		shell_fprintf(shell, SHELL_ERROR, "cap_len must be 1..%u\n",
+			      (unsigned int)NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	cap_buf = nrf_wifi_osal_mem_zalloc((size_t)cap_len * 4U);
+	if (!cap_buf) {
+		shell_fprintf(shell, SHELL_ERROR, "Unable to allocate ADPLL capture buffer\n");
+		return -ENOEXEC;
+	}
+
+	ctx->rf_test_run = true;
+	ctx->rf_test = NRF_WIFI_RF_TEST_ADPLL_CAP_NORMAL;
+
+	shell_fprintf(shell, SHELL_INFO,
+		      "ADPLL capture RPU staging address: 0x%08X\n",
+		      (unsigned int)RPU_MEM_RF_TEST_CAP_BASE);
+
+	status = nrf_wifi_rt_fmac_rf_test_adpll_cap(ctx->rpu_ctx,
+						    cap_buf,
+						    (unsigned short)cap_len,
+						    (unsigned char)enabled,
+						    (unsigned char)enable_tracing,
+						    &capture_status);
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "adpll_cap failed\n");
+		goto out;
+	}
+
+	if (capture_status == 0) {
+		shell_fprintf(shell, SHELL_INFO,
+			      "\n************* ADPLL capture data ***********\n");
+		for (i = 0; i < (unsigned int)cap_len; i++) {
+			unsigned char *p = &cap_buf[i * 4U];
+
+			shell_fprintf(shell, SHELL_INFO,
+				      "%02X%02X%02X%02X\n",
+				      p[3], p[2], p[1], p[0]);
+		}
+	} else {
+		shell_fprintf(shell, SHELL_ERROR,
+			      "ADPLL capture failed (status=%u)\n",
+			      (unsigned int)capture_status);
+	}
+	ret = 0;
+out:
+	nrf_wifi_osal_mem_free(cap_buf);
+	ctx->rf_test_run = false;
+	ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
+	return ret;
+}
+#endif /* WIFI_NRF71 */
+
 static int nrf_wifi_radio_test_rf_patch_settings(const struct shell *shell,
 						size_t argc,
 						const char *argv[])
@@ -3349,6 +3479,18 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      "rx_capture_timeout = %d\n",
 		      conf_params->capture_timeout);
 
+#ifdef WIFI_NRF71
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "rx_capture_ed_thresh_ofdm = %d\n",
+		      (signed char)conf_params->ed_thresh_ofdm);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "rx_capture_ed_thresh_dsss = %d\n",
+		      (signed char)conf_params->ed_thresh_dsss);
+#endif
+
 #if defined(CONFIG_BOARD_NRF7002DK_NRF5340_CPUAPP_NRF7001) || \
 	defined(CONFIG_BOARD_NRF7002DK_NRF5340_CPUAPP)
 	shell_fprintf(shell,
@@ -3729,6 +3871,12 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_read_memory,
 		      2,
 		      8),
+	SHELL_CMD_ARG(adpll_cap,
+		      NULL,
+		      "<enabled> <enable_tracing> <cap_len> - ADPLL capture (NORMAL)",
+		      nrf_wifi_radio_test_adpll_cap,
+		      4,
+		      0),
 #endif
 	SHELL_CMD_ARG(he_ltf,
 		      NULL,
@@ -3903,6 +4051,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_rx_capture_timeout,
 		      2,
 		      0),
+#ifdef WIFI_NRF71
+	SHELL_CMD_ARG(rx_capture_ed_thresh,
+		      NULL,
+		      "<ofdm> <dsss> - ED thresholds dynamic packet capture (-100..0)",
+		      nrf_wifi_radio_test_set_rx_capture_ed_thresh,
+		      3,
+		      0),
+#endif
 	SHELL_CMD_ARG(rx_cap,
 		      NULL,
 		      "0 = ADC capture\n"
