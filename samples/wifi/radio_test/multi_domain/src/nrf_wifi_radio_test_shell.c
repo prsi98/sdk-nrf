@@ -333,12 +333,28 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
 	unsigned char country_code[NRF_WIFI_COUNTRY_CODE_LEN] = {0};
 
+#ifdef WIFI_NRF71
+	unsigned int rx_bss_color = 0;
+	unsigned int rx_station_id = 0;
+#endif /* !WIFI_NRF71 */
+
 	/* Check and save regulatory country code currently set */
 	if (strlen(conf_params->country_code)) {
 		memcpy(country_code,
 		       conf_params->country_code,
 		       NRF_WIFI_COUNTRY_CODE_LEN);
 	}
+
+#ifdef WIFI_NRF71
+
+	if(conf_params->rx_bss_color != 0) {
+		rx_bss_color = conf_params->rx_bss_color;
+	}
+	if(conf_params->rx_station_id != 0) {
+		rx_station_id = conf_params->rx_station_id;
+	}
+
+#endif /* !WIFI_NRF71 */
 
 	memset(conf_params,
 	       0,
@@ -420,6 +436,14 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 	conf_params->tx_tone_dc_offset_i = 0;
 	conf_params->tx_tone_dc_offset_q = 0;
 #endif
+
+#ifdef WIFI_NRF71
+	conf_params->rx_bss_color = rx_bss_color;
+
+	conf_params->rx_station_id = rx_station_id;
+
+
+#endif /* !WIFI_NRF71 */
 
 	/* Store back the currently set country code */
 	if (strlen(country_code)) {
@@ -3065,6 +3089,7 @@ static int nrf_wifi_radio_test_set_rx_bss_color(const struct shell *shell,
 	}
 
 	ctx->conf_params.rx_bss_color = rx_bss_color;
+
 
 	return 0;
 }
