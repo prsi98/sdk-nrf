@@ -3008,6 +3008,118 @@ static int nrf_wifi_radio_test_phy_debug_stats(const struct shell *shell,
 	shell_fprintf(shell, SHELL_INFO, "spatial_reuse_cnt=%u\n", stats.spatialReuseCnt);
 	return 0;
 }
+
+static int nrf_wifi_radio_test_rh_oneshot(const struct shell *shell,
+					  size_t argc,
+					  const char *argv[])
+{
+	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
+	struct nrf_wifi_rh_test_params rh_params;
+	char *ptr = NULL;
+	unsigned long period = 0;
+	long range_start = 0;
+	long range_end = 0;
+
+	if (argc < 4) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: rh_oneshot <hist_type> <stat_type> <period> [<range_start> <range_end>]\n"
+			      "  hist_type: unconditional | pkt_only | noise_only\n"
+			      "  stat_type: all | max | range (range requires start/end dBm)\n"
+			      "  period: 0-10 seconds\n");
+		return -ENOEXEC;
+	}
+	if ((strcmp(argv[1], "unconditional") != 0) && (strcmp(argv[1], "pkt_only") != 0) &&
+	    (strcmp(argv[1], "noise_only") != 0)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid hist_type. Use 'unconditional', 'pkt_only' or 'noise_only'\n");
+		return -ENOEXEC;
+	}
+	if ((strcmp(argv[2], "all") != 0) && (strcmp(argv[2], "max") != 0) &&
+	    (strcmp(argv[2], "range") != 0)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid stat_type. Use 'all', 'max' or 'range'\n");
+		return -ENOEXEC;
+	}
+
+	period = strtoul(argv[3], &ptr, 10);
+
+	if (period > 10) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid time period. value in seconds with max duration of 10 seconds\n");
+		return -ENOEXEC;
+	}
+	if ((strcmp(argv[2], "range") == 0) && (argc < 6)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Range start and end values must be provided when stat_type is 'range'\n");
+		return -ENOEXEC;
+	}
+	if (strcmp(argv[2], "range") == 0) {
+		shell_fprintf(shell,
+			      SHELL_INFO,
+			      " command: %s %s %s %s %s\n",
+			      argv[1],
+			      argv[2],
+			      argv[3],
+			      argv[4],
+			      argv[5]);
+		range_start = strtol(argv[4], &ptr, 10);
+		range_end = strtol(argv[5], &ptr, 10);
+		if ((range_start < -100) || (range_start > 0) || (range_end < -100) || (range_end > 0) ||
+		    (range_start >= range_end)) {
+			shell_fprintf(shell,
+				      SHELL_ERROR,
+				      "Invalid range values. Range start and end should be in dBm with valid range from -100 to 0 and start value should be less than end value\n");
+			return -ENOEXEC;
+		}
+	} else {
+		shell_fprintf(shell,
+			      SHELL_INFO,
+			      " command: %s %s %s\n",
+			      argv[1],
+			      argv[2],
+			      argv[3]);
+	}
+	memset(&rh_params, 0, sizeof(rh_params));
+	rh_params.test = NRF_WIFI_RH_ONESHOT;
+	/* enable rssi histogram logic */
+	rh_params.rh_enable = 1;
+	rh_params.mode = 0; /* oneshot mode */
+	rh_params.hist_type = (strcmp(argv[1], "unconditional") == 0) ? 0 :
+			      ((strcmp(argv[1], "pkt_only") == 0) ? 1 : 2);
+	rh_params.stat_type = (strcmp(argv[2], "all") == 0) ? 0 :
+			      ((strcmp(argv[2], "max") == 0) ? 1 : 2);
+	rh_params.period = (unsigned char)period;
+	rh_params.range_start = (signed char)range_start;
+	rh_params.range_end = (signed char)range_end;
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->rf_test_run = true;
+	ctx->rf_test = NRF_WIFI_RH_ONESHOT;
+
+	status = nrf_wifi_rt_fmac_rf_test_rh_oneshot(ctx->rpu_ctx,
+						     &rh_params);
+
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "RH test start failed\n");
+		ctx->rf_test_run = false;
+		ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
+		return -ENOEXEC;
+	}
+
+	ctx->rf_test_run = false;
+	ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
+
+	return 0;
+}
 #endif /* WIFI_NRF71 */
 
 #if (defined(WIFI_NRF71) && !defined(PHY_RF_PARAM_GDRAM)) || defined(WIFI_NRF70)
@@ -4277,12 +4389,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_tx_num_he_ltf,
 		      2,
 		      0),
-    SHELL_CMD_ARG(tx_fec_coding,
-            NULL,
-            "<val> -Set TX FEC coding (0=BCC, 1=LDPC)",
-            nrf_wifi_radio_test_set_tx_fec_coding,
-            2,
-            0),
+	SHELL_CMD_ARG(tx_fec_coding,
+		      NULL,
+		      "<val> -Set TX FEC coding (0=BCC, 1=LDPC)",
+		      nrf_wifi_radio_test_set_tx_fec_coding,
+		      2,
+		      0),
+	SHELL_CMD_ARG(rh_oneshot,
+		      NULL,
+		      "RSSI histogram oneshot: <hist_type> <stat_type> <period_s> [range_start_dBm range_end_dBm]",
+		      nrf_wifi_radio_test_rh_oneshot,
+		      4,
+		      2),
 #endif
 	SHELL_SUBCMD_SET_END);
 
