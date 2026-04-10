@@ -1416,6 +1416,47 @@ static int nrf_wifi_radio_test_config_vtf_params(const struct shell *shell,
 	return 0;
 #endif
 }
+
+#ifdef PHY_RF_PARAM_GDRAM
+static int nrf_wifi_radio_test_config_phy_rf_param(const struct shell *shell,
+						   size_t argc,
+						   const char *argv[])
+{
+	enum nrf_wifi_status st;
+	unsigned long n;
+	char *end = NULL;
+
+	if (argc < 3) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: config_phy_rf_param <1..%u> <hex>\n",
+			      NUM_WIFI_PARAMS);
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	n = strtoul(argv[1], &end, 10);
+	if (end == argv[1] || *end != '\0' || n < 1UL || n > (unsigned long)NUM_WIFI_PARAMS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "param no must be 1..%u\n",
+			      NUM_WIFI_PARAMS);
+		return -ENOEXEC;
+	}
+
+	st = nrf_wifi_fmac_set_phy_rf_param_hex((unsigned int)n, argv[2]);
+	if (st != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "config_phy_rf_param failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell, SHELL_INFO, "config_phy_rf_param %lu stored\n", n);
+	return 0;
+}
+#endif
 #endif
 
 static int nrf_wifi_radio_test_init(const struct shell *shell,
@@ -3962,7 +4003,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      7),
 	SHELL_CMD_ARG(phy_debug_stats,
 		      NULL,
-		      "Get PHY RX debug stats (edCnt, CRC pass/fail, pkt counts, etc.)",
+		      "Get PHY RX debug stats",
 		      nrf_wifi_radio_test_phy_debug_stats,
 		      1,
 		      0),
@@ -3972,6 +4013,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_config_vtf_params,
 		      4,
 		      0),
+#ifdef PHY_RF_PARAM_GDRAM
+	SHELL_CMD_ARG(config_phy_rf_param,
+		      NULL,
+		      "<1..22> <hex> - RF parameters string, before init",
+		      nrf_wifi_radio_test_config_phy_rf_param,
+		      3,
+		      0),
+#endif
 	SHELL_CMD_ARG(enable_vt_calib,
 		      NULL,
 		      "<0|1> - Disable or enable VT calibration",
