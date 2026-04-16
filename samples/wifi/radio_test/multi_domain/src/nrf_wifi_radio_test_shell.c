@@ -1456,6 +1456,74 @@ static int nrf_wifi_radio_test_config_phy_rf_param(const struct shell *shell,
 	shell_fprintf(shell, SHELL_INFO, "config_phy_rf_param %lu stored\n", n);
 	return 0;
 }
+
+static int nrf_wifi_radio_test_config_edge_ceilings(const struct shell *shell,
+						     size_t argc,
+						     const char *argv[])
+{
+	enum nrf_wifi_status st;
+	size_t hexlen;
+
+	if (argc < 2) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: config_edge_ceilings <hex> (70 hex chars = 35 bytes, PARAM9)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	hexlen = strlen(argv[1]);
+	if (hexlen != 70U) {
+		shell_fprintf(shell, SHELL_ERROR, "hex length must be 70\n");
+		return -ENOEXEC;
+	}
+
+	st = nrf_wifi_fmac_set_phy_rf_param_hex(9U, argv[1]);
+	if (st != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "config_edge_ceilings failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell, SHELL_INFO, "config_edge_ceilings stored\n");
+	return 0;
+}
+
+static int nrf_wifi_radio_test_config_antenna_gain(const struct shell *shell,
+						   size_t argc,
+						   const char *argv[])
+{
+	enum nrf_wifi_status st;
+	size_t hexlen;
+
+	if (argc < 2) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Usage: config_antenna_gain <hex> (10 hex chars = 5 bytes, PARAM10)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	hexlen = strlen(argv[1]);
+	if (hexlen != 10U) {
+		shell_fprintf(shell, SHELL_ERROR, "hex length must be 10\n");
+		return -ENOEXEC;
+	}
+
+	st = nrf_wifi_fmac_set_phy_rf_param_hex(10U, argv[1]);
+	if (st != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell, SHELL_ERROR, "config_antenna_gain failed\n");
+		return -ENOEXEC;
+	}
+
+	shell_fprintf(shell, SHELL_INFO, "config_antenna_gain stored\n");
+	return 0;
+}
 #endif
 #endif
 
@@ -4019,6 +4087,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "<1..22> <hex> - RF parameters string, before init",
 		      nrf_wifi_radio_test_config_phy_rf_param,
 		      3,
+		      0),
+	SHELL_CMD_ARG(config_edge_ceilings,
+		      NULL,
+		      "<hex> - edge ceilings, before init",
+		      nrf_wifi_radio_test_config_edge_ceilings,
+		      2,
+		      0),
+	SHELL_CMD_ARG(config_antenna_gain,
+		      NULL,
+		      "<hex> - antenna gain PARAM10, 10 hex chars, before init",
+		      nrf_wifi_radio_test_config_antenna_gain,
+		      2,
 		      0),
 #endif
 	SHELL_CMD_ARG(enable_vt_calib,
