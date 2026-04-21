@@ -3295,6 +3295,7 @@ static int nrf_wifi_radio_test_set_rx_bss_color(const struct shell *shell,
 {
 	char *ptr = NULL;
 	unsigned long rx_bss_color = 0;
+	enum nrf_wifi_status status;
 
 	rx_bss_color = strtoul(argv[1], &ptr, 10);
 
@@ -3311,6 +3312,52 @@ static int nrf_wifi_radio_test_set_rx_bss_color(const struct shell *shell,
 
 	ctx->conf_params.rx_bss_color = rx_bss_color;
 
+	printf("wifi_build shell: rx_bss_color=%lu (applied on next TX/RX)\n",
+	       rx_bss_color);
+
+	status = nrf_wifi_rt_fmac_prog_mac_param_update(ctx->rpu_ctx, &ctx->conf_params);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Programming MAC param update failed\n");
+		return -ENOEXEC;
+	}
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_bss_check_enable(const struct shell *shell,
+						    size_t argc,
+						    const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long bss_check_enable = 0;
+	enum nrf_wifi_status status;
+
+	bss_check_enable = strtoul(argv[1], &ptr, 10);
+
+	if (bss_check_enable > 1) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid bss_check_enable (0=disable, 1=enable)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.bss_check_enable =
+		(unsigned char)bss_check_enable;
+
+
+	status = nrf_wifi_rt_fmac_prog_mac_param_update(ctx->rpu_ctx, &ctx->conf_params);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Programming MAC param update failed\n");
+		return -ENOEXEC;
+	}
 
 	return 0;
 }
@@ -3321,6 +3368,7 @@ static int nrf_wifi_radio_test_set_rx_station_id(const struct shell *shell,
 {
 	char *ptr = NULL;
 	unsigned long rx_station_id = 0;
+	enum nrf_wifi_status status;
 
 	rx_station_id = strtoul(argv[1], &ptr, 10);
 
@@ -3336,6 +3384,14 @@ static int nrf_wifi_radio_test_set_rx_station_id(const struct shell *shell,
 	}
 
 	ctx->conf_params.rx_station_id = rx_station_id;
+
+	status = nrf_wifi_rt_fmac_prog_mac_param_update(ctx->rpu_ctx, &ctx->conf_params);
+	if (status != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Programming MAC param update failed\n");
+		return -ENOEXEC;
+	}
 
 	return 0;
 }
@@ -3784,6 +3840,11 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "rx_station_id = %d\n",
 		      conf_params->rx_station_id);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "bss_check_enable = %d\n",
+		      conf_params->bss_check_enable);
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
@@ -4468,6 +4529,12 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      NULL,
 		      "<val> - bss color (1 to 63)",
 		      nrf_wifi_radio_test_set_rx_bss_color,
+		      2,
+		      0),
+	SHELL_CMD_ARG(bss_check_enable,
+		      NULL,
+		      "<val> - BSS check (0=disable, 1=enable)",
+		      nrf_wifi_radio_test_set_bss_check_enable,
 		      2,
 		      0),
 	SHELL_CMD_ARG(rx_station_id,
