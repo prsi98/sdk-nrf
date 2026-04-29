@@ -1521,6 +1521,16 @@ static int nrf_wifi_radio_test_config_antenna_gain(const struct shell *shell,
 		return -ENOEXEC;
 	}
 
+#ifdef WIFI_NRF71
+	st = nrf_wifi_rt_fmac_tx_pwr_ctrl_apply_param10(ctx->rpu_ctx, argv[1]);
+	if (st != NRF_WIFI_STATUS_SUCCESS) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "config_antenna_gain: tx_pwr_ctrl cache update failed\n");
+		return -ENOEXEC;
+	}
+#endif
+
 	shell_fprintf(shell, SHELL_INFO, "config_antenna_gain stored\n");
 	return 0;
 }
