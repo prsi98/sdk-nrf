@@ -12,6 +12,9 @@
 #include <nrf_wifi_radio_test_shell.h>
 #include <util.h>
 #include "common/fmac_api_common.h"
+#ifdef PHY_RF_PARAM_GDRAM
+#include <common/rpu_if.h>
+#endif
 #ifdef CONFIG_NRF70_SR_COEX
 #include <coex.h>
 #endif
@@ -1376,7 +1379,8 @@ static int nrf_wifi_radio_test_config_vtf_params(const struct shell *shell,
 						 const char *argv[])
 {
 	char *ptr = NULL;
-	unsigned long voltage, temp;
+	unsigned long voltage;
+	long temp_signed;
 	long x0_signed;
 
 	if (argc < 4) {
@@ -1393,8 +1397,15 @@ static int nrf_wifi_radio_test_config_vtf_params(const struct shell *shell,
 	return -ENOTSUP;
 #else
 	voltage = strtoul(argv[1], &ptr, 10);
-	temp = strtoul(argv[2], &ptr, 10);
+	temp_signed = strtol(argv[2], &ptr, 10);
 	x0_signed = strtol(argv[3], &ptr, 10);
+
+	if (temp_signed < -50L || temp_signed > 150L) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "temp must be -50..150\n");
+		return -EINVAL;
+	}
 
 	if (x0_signed < -128 || x0_signed > 127) {
 		shell_fprintf(shell,
@@ -1404,14 +1415,24 @@ static int nrf_wifi_radio_test_config_vtf_params(const struct shell *shell,
 	}
 
 	vtf_voltage = (unsigned int)voltage;
-	vtf_temp = (unsigned int)temp;
+	vtf_temp = (unsigned int)temp_signed;
 	vtf_x0 = (unsigned int)(signed char)x0_signed;
+
+	{
+		struct soft_hpqm_info *hpqm_info =
+			(struct soft_hpqm_info *)HOST_RPU_SOFTHPQM_INFO_START;
+
+		shell_fprintf(shell,
+			      SHELL_INFO,
+			      "VTF params GDRAM buffer addr: %p (vtf_buffer_addr)\n",
+			      (void *)&hpqm_info->phy_vtf_params_addr);
+	}
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
-		      "VTF params set: voltage=%u temp=%u x0_freq=%ld\n",
+		      "VTF params set: voltage=%u temp=%ld x0_freq=%ld\n",
 		      vtf_voltage,
-		      vtf_temp,
+		      temp_signed,
 		      x0_signed);
 	return 0;
 #endif
@@ -3843,11 +3864,6 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 #ifdef WIFI_NRF71
 	shell_fprintf(shell,
 		      SHELL_INFO,
-		      "rx_bss_color = %d\n",
-		      conf_params->rx_bss_color);
-
-	shell_fprintf(shell,
-		      SHELL_INFO,
 		      "rx_station_id = %d\n",
 		      conf_params->rx_station_id);
 
@@ -3855,6 +3871,11 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "bss_check_enable = %d\n",
 		      conf_params->bss_check_enable);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "rx_bss_color = %d\n",
+		      conf_params->rx_bss_color);
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
