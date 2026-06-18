@@ -11,6 +11,7 @@
 #include <fmac_main.h>
 #include <nrf_wifi_radio_test_shell.h>
 #include <util.h>
+#include <string.h>
 #include "common/fmac_api_common.h"
 #ifdef PHY_RF_PARAM_GDRAM
 #include <common/rpu_if.h>
@@ -485,7 +486,7 @@ static int nrf_wifi_radio_test_set_defaults(const struct shell *shell,
 	return 0;
 }
 
-
+#ifndef WIFI_NRF71
 static int nrf_wifi_radio_test_set_phy_calib_rxdc(const struct shell *shell,
 						  size_t argc,
 						  const char *argv[])
@@ -648,6 +649,7 @@ static int nrf_wifi_radio_test_set_phy_calib_txiq(const struct shell *shell,
 					     ~(NRF_WIFI_PHY_CALIB_FLAG_TXIQ));
 	return 0;
 }
+#endif /* !WIFI_NRF71 */
 
 
 static int nrf_wifi_radio_test_set_he_ltf(const struct shell *shell,
@@ -1542,7 +1544,6 @@ static int nrf_wifi_radio_test_config_antenna_gain(const struct shell *shell,
 		return -ENOEXEC;
 	}
 
-#ifdef WIFI_NRF71
 	st = nrf_wifi_rt_fmac_tx_pwr_ctrl_apply_param10(ctx->rpu_ctx, argv[1]);
 	if (st != NRF_WIFI_STATUS_SUCCESS) {
 		shell_fprintf(shell,
@@ -1550,7 +1551,6 @@ static int nrf_wifi_radio_test_config_antenna_gain(const struct shell *shell,
 			      "config_antenna_gain: tx_pwr_ctrl cache update failed\n");
 		return -ENOEXEC;
 	}
-#endif
 
 	shell_fprintf(shell, SHELL_INFO, "config_antenna_gain stored\n");
 	return 0;
@@ -2154,6 +2154,7 @@ out:
 }
 
 
+#ifndef WIFI_NRF71
 static int nrf_wifi_radio_set_dpd(const struct shell *shell,
 				  size_t argc,
 				  const char *argv[])
@@ -2294,6 +2295,7 @@ out:
 
 	return ret;
 }
+#endif /* !WIFI_NRF71 */
 
 
 static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
@@ -2398,869 +2400,6 @@ out:
 	return ret;
 }
 
-#ifdef WIFI_NRF71
-static int nrf_wifi_radio_test_perform_rf_calibration(const struct shell *shell,
-						     size_t argc,
-						     const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_calib calib_params;
-	char *ptr = NULL;
-	unsigned long calib_bitmap = 0;
-	unsigned long sys_operating_mode = 0;
-	unsigned long result_index = 0;
-	int ret = -ENOEXEC;
-
-	if (argc < 3) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Usage: perform_rf_calibration <calib_bitmap> <sys_operating_mode> <result_index>\n");
-		shell_fprintf(shell,
-			      SHELL_INFO,
-			      "  calib_bitmap: hex (e.g. 0x7F) or decimal; sys_operating_mode: 0=rx_only 1=trx_normal; result_index: 0 or 1 (default 0)\n");
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	calib_bitmap = strtoul(argv[1], &ptr, 0);
-	if (calib_bitmap > 0xFF) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "calib_bitmap must be 0-0xFF\n");
-		return -ENOEXEC;
-	}
-
-	sys_operating_mode = strtoul(argv[2], &ptr, 10);
-	if (sys_operating_mode > 1) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "sys_operating_mode must be 0 (rx_only) or 1 (trx_normal)\n");
-		return -ENOEXEC;
-	}
-
-	if (argc >= 4) {
-		result_index = strtoul(argv[3], &ptr, 10);
-		if (result_index > 1) {
-			shell_fprintf(shell,
-				      SHELL_ERROR,
-				      "result_index must be 0 or 1\n");
-			return -ENOEXEC;
-		}
-	}
-
-	memset(&calib_params, 0, sizeof(calib_params));
-	calib_params.calib_bitmap = (unsigned char)calib_bitmap;
-	calib_params.sys_operating_mode = (unsigned char)sys_operating_mode;
-	calib_params.index = (unsigned char)result_index;
-	calib_params.rf_calib_results = NULL;
-
-	status = nrf_wifi_rt_fmac_rf_test_perform_calib(ctx->rpu_ctx, &calib_params);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "perform_rf_calibration failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell,
-		      SHELL_INFO,
-		      "RF calibration completed (bitmap=0x%02x mode=%lu result_index=%lu)\n",
-		      (unsigned int)calib_bitmap,
-		      sys_operating_mode,
-		      result_index);
-	ret = 0;
-	return ret;
-}
-
-static unsigned char rf_calib_result_buf[CAL_MEM_SIZE];
-
-static int nrf_wifi_radio_test_read_rf_comp_results(const struct shell *shell,
-						   size_t argc,
-						   const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_read_calib_results params;
-	char *ptr = NULL;
-	unsigned long mode = 0;
-	unsigned long result_index = 0;
-
-	if (argc < 2) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Usage: read_rf_comp_results <mode> [result_index]\n");
-		shell_fprintf(shell,
-			      SHELL_INFO,
-			      "  mode: 0=operating_channel 1=scan_channel; result_index: 0 or 1 (default 0)\n");
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	mode = strtoul(argv[1], &ptr, 10);
-	if (mode > 1) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "mode must be 0 (operating) or 1 (scan)\n");
-		return -ENOEXEC;
-	}
-
-	if (argc >= 3) {
-		result_index = strtoul(argv[2], &ptr, 10);
-		if (result_index > 1) {
-			shell_fprintf(shell,
-				      SHELL_ERROR,
-				      "result_index must be 0 or 1\n");
-			return -ENOEXEC;
-		}
-	}
-
-	memset(&params, 0, sizeof(params));
-	params.mode = (unsigned char)mode;
-	params.index = (unsigned char)result_index;
-	params.rf_calib_results = rf_calib_result_buf;
-
-	status = nrf_wifi_rt_fmac_rf_test_read_comp_results(ctx->rpu_ctx, &params);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "read_rf_comp_results failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell,
-		      SHELL_INFO,
-		      "RF read comp results completed (mode=%lu result_index=%lu)\n",
-		      mode, result_index);
-	return 0;
-}
-
-static int nrf_wifi_radio_test_apply_rf_compensation(const struct shell *shell,
-						     size_t argc,
-						     const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_calib calib_params;
-	char *ptr = NULL;
-	unsigned long result_index = 0;
-
-	if (argc < 2) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Usage: apply_rf_compensation <result_index>\n");
-		shell_fprintf(shell,
-			      SHELL_INFO,
-			      "  result_index: 0 or 1 (slot). Uses in-memory result buffer (%d bytes).\n",
-			      (int)CAL_MEM_SIZE);
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	result_index = strtoul(argv[1], &ptr, 10);
-	if (result_index > 1) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "result_index must be 0 or 1\n");
-		return -ENOEXEC;
-	}
-
-	memset(&calib_params, 0, sizeof(calib_params));
-	calib_params.index = (unsigned char)result_index;
-	calib_params.rf_calib_results = NULL;
-
-	status = nrf_wifi_rt_fmac_rf_test_apply_compensation(ctx->rpu_ctx,
-							    &calib_params,
-							    rf_calib_result_buf);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "apply_rf_compensation failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell,
-		      SHELL_INFO,
-		      "RF apply compensation completed (result_index=%lu)\n",
-		      result_index);
-	return 0;
-}
-
-static int nrf_wifi_radio_test_set_calib_regs(const struct shell *shell,
-					      size_t argc,
-					      const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_set_cal_regs calib_params;
-	char *ptr = NULL;
-	unsigned long cal_id = 0;
-	unsigned long num_regs = 0;
-	unsigned long addr_val;
-	size_t i;
-	int ret = -ENOEXEC;
-
-	/* set_calib_regs <cal_id> <num_regs> <addr0> <val0> [addr1 val1 ...] */
-	if (argc < 4) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Usage: set_calib_regs <cal_id> <num_regs> <addr0> <val0> [addr1 val1 ...]\n");
-		shell_fprintf(shell,
-			      SHELL_INFO,
-			      "  cal_id: 0=RX_DC_CAL 1=TX_DC_CAL 2=RX_IQ_CAL 3=TX_IQ_CAL 4=DPD_CAL; num_regs: 1..8\n");
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	cal_id = strtoul(argv[1], &ptr, 0);
-	if (cal_id > 4) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "cal_id must be 0..4\n");
-		return -ENOEXEC;
-	}
-
-	num_regs = strtoul(argv[2], &ptr, 0);
-	if (num_regs == 0 || num_regs > MAX_REGS_CONF) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "num_regs must be 1..%d\n",
-			      MAX_REGS_CONF);
-		return -ENOEXEC;
-	}
-
-	if (argc < (size_t)(4 + num_regs * 2)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Need %lu addr/val pairs (got %d args)\n",
-			      (unsigned long)num_regs, (int)argc);
-		return -ENOEXEC;
-	}
-
-	memset(&calib_params, 0, sizeof(calib_params));
-	calib_params.cal_id = (unsigned char)cal_id;
-	calib_params.num_regs = (unsigned char)num_regs;
-	for (i = 0; i < num_regs; i++) {
-		addr_val = strtoul(argv[3 + i * 2], &ptr, 0);
-		calib_params.reg_addr[i] = (unsigned int)addr_val;
-		addr_val = strtoul(argv[4 + i * 2], &ptr, 0);
-		calib_params.reg_val[i] = (unsigned int)addr_val;
-	}
-
-	status = nrf_wifi_rt_fmac_rf_test_set_calib_regs(ctx->rpu_ctx, &calib_params);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "set_calib_regs failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell,
-		      SHELL_INFO,
-		      "set_calib_regs cal_id=%lu num_regs=%lu done\n",
-		      cal_id, num_regs);
-	return 0;
-}
-
-static int nrf_wifi_radio_test_enable_vt_calib(const struct shell *shell,
-	size_t argc,
-	const char *argv[])
-{
-enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-char *ptr = NULL;
-unsigned long val = 0;
-int ret = -ENOEXEC;
-
-if (argc < 2) {
-shell_fprintf(shell, SHELL_ERROR, "Usage: enable_vt_calib <0|1>\n");
-return -ENOEXEC;
-}
-
-val = strtoul(argv[1], &ptr, 10);
-if (val > 1) {
-shell_fprintf(shell, SHELL_ERROR, "Invalid value %lu (use 0 or 1)\n", val);
-return -ENOEXEC;
-}
-
-if (!check_test_in_prog(shell)) {
-return -ENOEXEC;
-}
-
-status = nrf_wifi_rt_fmac_rf_test_enable_vt_calibration(ctx->rpu_ctx, (unsigned char)val);
-if (status != NRF_WIFI_STATUS_SUCCESS) {
-shell_fprintf(shell, SHELL_ERROR, "enable_vt_calib failed\n");
-return -ENOEXEC;
-}
-
-shell_fprintf(shell, SHELL_INFO, "VT calibration %s\n", val ? "enabled" : "disabled");
-return 0;
-}
-
-static int nrf_wifi_radio_test_enable_vt_comp(const struct shell *shell,
-					      size_t argc,
-					      const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	char *ptr = NULL;
-	unsigned long val = 0;
-
-	if (argc < 2) {
-		shell_fprintf(shell, SHELL_ERROR, "Usage: enable_vt_comp <0|1>\n");
-		return -ENOEXEC;
-	}
-
-	val = strtoul(argv[1], &ptr, 10);
-	if (val > 1) {
-		shell_fprintf(shell, SHELL_ERROR, "Invalid value %lu (use 0 or 1)\n", val);
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	status = nrf_wifi_rt_fmac_rf_test_enable_vt_compensation(ctx->rpu_ctx, (unsigned char)val);
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell, SHELL_ERROR, "enable_vt_comp failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell, SHELL_INFO, "VT compensation %s\n", val ? "enabled" : "disabled");
-	return 0;
-}
-
-static int nrf_wifi_radio_test_set_reg(const struct shell *shell,
-				       size_t argc,
-				       const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_config_regs config_regs;
-	char *ptr = NULL;
-	unsigned long num_regs;
-	size_t i;
-
-	/* set_reg <addr1> <val1> [addr2 val2 ...] - max 8 pairs */
-	if (argc < 3 || (argc - 1) % 2 != 0) {
-		shell_fprintf(shell, SHELL_ERROR,
-			      "Usage: set_reg <addr1> <val1> [addr2 val2 ...] (1..%d pairs)\n",
-			      MAX_REGS_CONF);
-		return -ENOEXEC;
-	}
-
-	num_regs = (argc - 1) / 2;
-	if (num_regs > MAX_REGS_CONF) {
-		shell_fprintf(shell, SHELL_ERROR, "Max %d regs\n", MAX_REGS_CONF);
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	memset(&config_regs, 0, sizeof(config_regs));
-	config_regs.num_regs = (unsigned char)num_regs;
-	for (i = 0; i < num_regs; i++) {
-		config_regs.reg_addr[i] = (unsigned int)strtoul(argv[1 + i * 2], &ptr, 0);
-		config_regs.reg_val[i] = (unsigned int)strtoul(argv[2 + i * 2], &ptr, 0);
-	}
-
-	status = nrf_wifi_rt_fmac_rf_test_set_regs(ctx->rpu_ctx, &config_regs);
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell, SHELL_ERROR, "set_reg failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell, SHELL_INFO, "set_reg %lu regs done\n", (unsigned long)num_regs);
-	return 0;
-}
-
-static int nrf_wifi_radio_test_read_reg(const struct shell *shell,
-					size_t argc,
-					const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_config_regs config_regs;
-	char *ptr = NULL;
-	size_t i;
-
-	/* read_reg <addr1> [addr2 ...] - max 8 addrs */
-	if (argc < 2) {
-		shell_fprintf(shell, SHELL_ERROR,
-			      "Usage: read_reg <addr1> [addr2 ...] (1..%d addrs)\n",
-			      MAX_REGS_CONF);
-		return -ENOEXEC;
-	}
-
-	if ((size_t)(argc - 1) > MAX_REGS_CONF) {
-		shell_fprintf(shell, SHELL_ERROR, "Max %d regs\n", MAX_REGS_CONF);
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	memset(&config_regs, 0, sizeof(config_regs));
-	config_regs.num_regs = (unsigned char)(argc - 1);
-	for (i = 0; i < (size_t)config_regs.num_regs; i++) {
-		config_regs.reg_addr[i] = (unsigned int)strtoul(argv[1 + i], &ptr, 0);
-	}
-
-	status = nrf_wifi_rt_fmac_rf_test_read_regs(ctx->rpu_ctx, &config_regs);
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell, SHELL_ERROR, "read_reg failed\n");
-		return -ENOEXEC;
-	}
-
-	for (i = 0; i < (size_t)config_regs.num_regs; i++) {
-		shell_fprintf(shell, SHELL_INFO, "0x%x = 0x%x\n",
-			      config_regs.reg_addr[i], config_regs.reg_val[i]);
-	}
-	return 0;
-}
-
-static int nrf_wifi_radio_test_set_memory(const struct shell *shell,
-					  size_t argc,
-					  const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_config_mem config_mem;
-	char *ptr = NULL;
-	unsigned long num_loc;
-	size_t i;
-
-	/* set_memory <addr1> <val1> [addr2 val2 ...] - max 8 pairs */
-	if (argc < 3 || (argc - 1) % 2 != 0) {
-		shell_fprintf(shell, SHELL_ERROR,
-			      "Usage: set_memory <addr1> <val1> [addr2 val2 ...] (1..%d pairs)\n",
-			      MAX_MEM_CONF);
-		return -ENOEXEC;
-	}
-
-	num_loc = (argc - 1) / 2;
-	if (num_loc > MAX_MEM_CONF) {
-		shell_fprintf(shell, SHELL_ERROR, "Max %d memory locations\n", MAX_MEM_CONF);
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	memset(&config_mem, 0, sizeof(config_mem));
-	config_mem.num_memory_loc = (unsigned char)num_loc;
-	for (i = 0; i < num_loc; i++) {
-		config_mem.mem_addr[i] = (unsigned int)strtoul(argv[1 + i * 2], &ptr, 0);
-		config_mem.mem_val[i] = (unsigned int)strtoul(argv[2 + i * 2], &ptr, 0);
-	}
-
-	status = nrf_wifi_rt_fmac_rf_test_set_mem(ctx->rpu_ctx, &config_mem);
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell, SHELL_ERROR, "set_memory failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell, SHELL_INFO, "set_memory %lu locations done\n", (unsigned long)num_loc);
-	return 0;
-}
-
-static int nrf_wifi_radio_test_read_memory(const struct shell *shell,
-					   size_t argc,
-					   const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_config_mem config_mem;
-	char *ptr = NULL;
-	size_t i;
-
-	/* read_memory <addr1> [addr2 ...] - max 8 addrs */
-	if (argc < 2) {
-		shell_fprintf(shell, SHELL_ERROR,
-			      "Usage: read_memory <addr1> [addr2 ...] (1..%d addrs)\n",
-			      MAX_MEM_CONF);
-		return -ENOEXEC;
-	}
-
-	if ((size_t)(argc - 1) > MAX_MEM_CONF) {
-		shell_fprintf(shell, SHELL_ERROR, "Max %d memory locations\n", MAX_MEM_CONF);
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	memset(&config_mem, 0, sizeof(config_mem));
-	config_mem.num_memory_loc = (unsigned char)(argc - 1);
-	for (i = 0; i < (size_t)config_mem.num_memory_loc; i++) {
-		config_mem.mem_addr[i] = (unsigned int)strtoul(argv[1 + i], &ptr, 0);
-	}
-
-	status = nrf_wifi_rt_fmac_rf_test_read_mem(ctx->rpu_ctx, &config_mem);
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell, SHELL_ERROR, "read_memory failed\n");
-		return -ENOEXEC;
-	}
-
-	for (i = 0; i < (size_t)config_mem.num_memory_loc; i++) {
-		shell_fprintf(shell, SHELL_INFO, "0x%x = 0x%x\n",
-			      config_mem.mem_addr[i], config_mem.mem_val[i]);
-	}
-	return 0;
-}
-
-#ifdef WIFI_NRF71
-static int nrf_wifi_radio_test_adpll_cap(const struct shell *shell,
-					 size_t argc,
-					 const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	unsigned long enabled = 0;
-	unsigned long enable_tracing = 0;
-	unsigned long cap_len = 0;
-	unsigned char *cap_buf = NULL;
-	unsigned char capture_status = 0;
-	char *ptr = NULL;
-	unsigned int i = 0;
-	int ret = -ENOEXEC;
-
-	if (argc != 4) {
-		shell_fprintf(shell, SHELL_ERROR,
-			      "Usage: adpll_cap <enabled> <enable_tracing> <cap_len>\n"
-			      "  enabled/tracing: 0|1; cap_len: 1..%u\n",
-			      (unsigned int)NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES);
-		return -ENOEXEC;
-	}
-
-	enabled = strtoul(argv[1], &ptr, 10);
-	enable_tracing = strtoul(argv[2], &ptr, 10);
-	cap_len = strtoul(argv[3], &ptr, 10);
-
-	if (enabled > 1 || enable_tracing > 1) {
-		shell_fprintf(shell, SHELL_ERROR, "enabled and enable_tracing must be 0 or 1\n");
-		return -ENOEXEC;
-	}
-	if (cap_len == 0 || cap_len > NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES) {
-		shell_fprintf(shell, SHELL_ERROR, "cap_len must be 1..%u\n",
-			      (unsigned int)NRF_WIFI_RF_TEST_RX_CAPTURE_MAX_SAMPLES);
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	cap_buf = nrf_wifi_osal_mem_zalloc((size_t)cap_len * 4U);
-	if (!cap_buf) {
-		shell_fprintf(shell, SHELL_ERROR, "Unable to allocate ADPLL capture buffer\n");
-		return -ENOEXEC;
-	}
-
-	ctx->rf_test_run = true;
-	ctx->rf_test = NRF_WIFI_RF_TEST_ADPLL_CAP_NORMAL;
-
-	shell_fprintf(shell, SHELL_INFO,
-		      "ADPLL capture RPU staging address: 0x%08X\n",
-		      (unsigned int)RPU_MEM_RF_TEST_CAP_BASE);
-
-	status = nrf_wifi_rt_fmac_rf_test_adpll_cap(ctx->rpu_ctx,
-						    cap_buf,
-						    (unsigned short)cap_len,
-						    (unsigned char)enabled,
-						    (unsigned char)enable_tracing,
-						    &capture_status);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell, SHELL_ERROR, "adpll_cap failed\n");
-		goto out;
-	}
-
-	if (capture_status == 0) {
-		shell_fprintf(shell, SHELL_INFO,
-			      "\n************* ADPLL capture data ***********\n");
-		for (i = 0; i < (unsigned int)cap_len; i++) {
-			unsigned char *p = &cap_buf[i * 4U];
-
-			shell_fprintf(shell, SHELL_INFO,
-				      "%02X%02X%02X%02X\n",
-				      p[3], p[2], p[1], p[0]);
-		}
-	} else {
-		shell_fprintf(shell, SHELL_ERROR,
-			      "ADPLL capture failed (status=%u)\n",
-			      (unsigned int)capture_status);
-	}
-	ret = 0;
-out:
-	nrf_wifi_osal_mem_free(cap_buf);
-	ctx->rf_test_run = false;
-	ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
-	return ret;
-}
-#endif /* WIFI_NRF71 */
-
-static int nrf_wifi_radio_test_rf_patch_settings(const struct shell *shell,
-						size_t argc,
-						const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_patch_settings params;
-	char *ptr = NULL;
-	unsigned long patch_type = 0;
-	unsigned long index_val = 0;
-	unsigned long slice_val = 0;
-	unsigned long value_val = 0;
-	unsigned long band_val = 0;
-	unsigned long is_new = 0;
-
-	/* rf_patch_settings <patch_type> <index> <slice> <value> [band] [is_new_setting] */
-	if (argc < 5) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Usage: rf_patch_settings <patch_type> <index> <slice> <value> [band] [is_new_setting]\n");
-		return -ENOEXEC;
-	}
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	patch_type = strtoul(argv[1], &ptr, 0);
-	if (patch_type > 11) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "patch_type must be 0..11\n");
-		return -ENOEXEC;
-	}
-
-	index_val = strtoul(argv[2], &ptr, 0);
-	slice_val = strtoul(argv[3], &ptr, 0);
-	value_val = strtoul(argv[4], &ptr, 0);
-	band_val = (argc >= 6) ? strtoul(argv[5], &ptr, 0) : 0;
-	is_new = (argc >= 7) ? strtoul(argv[6], &ptr, 0) : 0;
-
-	if (band_val > 1 || is_new > 1) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "band and is_new_setting must be 0 or 1\n");
-		return -ENOEXEC;
-	}
-
-	memset(&params, 0, sizeof(params));
-	params.patch_type = (unsigned char)patch_type;
-	params.index = (unsigned char)index_val;
-	params.slice = (unsigned char)slice_val;
-	params.value = (unsigned int)value_val;
-	params.band = (unsigned char)band_val;
-	params.is_new_setting = (unsigned char)is_new;
-
-	status = nrf_wifi_rt_fmac_rf_test_patch_settings(ctx->rpu_ctx, &params);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "rf_patch_settings failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell,
-		      SHELL_INFO,
-		      "rf_patch_settings patch_type=%lu done\n",
-		      patch_type);
-	return 0;
-}
-
-static int nrf_wifi_radio_test_phy_debug_stats(const struct shell *shell,
-					       size_t argc,
-					       const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rf_get_rx_debug_stats stats;
-
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	memset(&stats, 0, sizeof(stats));
-	status = nrf_wifi_rt_fmac_rf_test_phy_debug_stats(ctx->rpu_ctx, &stats);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "phy_debug_stats failed\n");
-		return -ENOEXEC;
-	}
-
-	shell_fprintf(shell,
-		      SHELL_INFO,
-		      "************* PHY DEBUG STATS ***********\n");
-	shell_fprintf(shell, SHELL_INFO, "ed_cnt=%u\n", stats.edCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_crc32_pass_cnt=%u\n", stats.ofdmCrc32PassCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_crc32_fail_cnt=%u\n", stats.ofdmCrc32FailCnt);
-	shell_fprintf(shell, SHELL_INFO, "dsss_crc32_pass_cnt=%u\n", stats.dsssCrc32PassCnt);
-	shell_fprintf(shell, SHELL_INFO, "dsss_crc32_fail_cnt=%u\n", stats.dsssCrc32FailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_corr_pass_cnt=%u\n", stats.ofdmCorrPassCnt);
-	shell_fprintf(shell, SHELL_INFO, "dsss_corr_pass_cnt=%u\n", stats.dsssCorrPassCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_ltf_corr_fail_cnt=%u\n", stats.ofdmLtfCorrFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_lsig_fail_cnt=%u\n", stats.ofdmLsigFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_htsig_a_fail_cnt=%u\n", stats.ofdmHtsigAFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_vhtsig_a_fail_cnt=%u\n", stats.ofdmVhtsigAFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_vhtsig_b_fail_cnt=%u\n", stats.ofdmVhtsigBFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_hesig_a_fail_cnt=%u\n", stats.ofdmHesigAFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_hesig_b_fail_cnt=%u\n", stats.ofdmHesigBFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_usig_fail_cnt=%u\n", stats.ofdmUsigFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_ehtsig_fail_cnt=%u\n", stats.ofdmEhtsigFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_zero_len_mpdu_cnt=%u\n", stats.ofdmzeroLenMpduCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_invalid_delimiter_cnt=%u\n", stats.ofdminvalidDelimiterCnt);
-	shell_fprintf(shell, SHELL_INFO, "dsss_sync_fail_cnt=%u\n", stats.dsssSyncFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "dsss_fsync_fail_cnt=%u\n", stats.dsssFsyncFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "dsss_sfd_fail_cnt=%u\n", stats.dsssSfdFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "dsss_hdr_fail_cnt=%u\n", stats.dsssHdrFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "lg_pkt_cnt=%u\n", stats.lgPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "ht_pkt_cnt=%u\n", stats.htPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "vht_pkt_cnt=%u\n", stats.vhtPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "he_su_pkt_cnt=%u\n", stats.heSuPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "he_mu_pkt_cnt=%u\n", stats.heMuPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "he_er_su_pkt_cnt=%u\n", stats.heErSuPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "he_tb_pkt_cnt=%u\n", stats.heTbPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "eht_mu_pkt_cnt=%u\n", stats.ehtMuPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "pop_cnt=%u\n", stats.popCnt);
-	shell_fprintf(shell, SHELL_INFO, "mid_packet_cnt=%u\n", stats.midPacketCnt);
-	shell_fprintf(shell, SHELL_INFO, "low_energy_event_cnt=%u\n", stats.lowEnergyEventCnt);
-	shell_fprintf(shell, SHELL_INFO, "un_supported_cnt=%u\n", stats.unSupportedCnt);
-	shell_fprintf(shell, SHELL_INFO, "other_sta_pkt_cnt=%u\n", stats.otherStaPktCnt);
-	shell_fprintf(shell, SHELL_INFO, "vht_ndp_cnt=%u\n", stats.vhtNdpCnt);
-	shell_fprintf(shell, SHELL_INFO, "hesu_ndp_cnt=%u\n", stats.hesuNdpCnt);
-	shell_fprintf(shell, SHELL_INFO, "eht_ndp_cnt=%u\n", stats.ehtNdpCnt);
-	shell_fprintf(shell, SHELL_INFO, "ofdm_s2l_timeout_fail_cnt=%u\n", stats.ofdmS2lTimeOutFailCnt);
-	shell_fprintf(shell, SHELL_INFO, "spatial_reuse_cnt=%u\n", stats.spatialReuseCnt);
-	return 0;
-}
-
-static int nrf_wifi_radio_test_rh_oneshot(const struct shell *shell,
-					  size_t argc,
-					  const char *argv[])
-{
-	enum nrf_wifi_status status = NRF_WIFI_STATUS_FAIL;
-	struct nrf_wifi_rh_test_params rh_params;
-	char *ptr = NULL;
-	unsigned long period = 0;
-	long range_start = 0;
-	long range_end = 0;
-
-	if (argc < 4) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Usage: rh_oneshot <hist_type> <stat_type> <period> [<range_start> <range_end>]\n"
-			      "  hist_type: unconditional | pkt_only | noise_only\n"
-			      "  stat_type: all | max | range (range requires start/end dBm)\n"
-			      "  period: 0-10 seconds\n");
-		return -ENOEXEC;
-	}
-	if ((strcmp(argv[1], "unconditional") != 0) && (strcmp(argv[1], "pkt_only") != 0) &&
-	    (strcmp(argv[1], "noise_only") != 0)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Invalid hist_type. Use 'unconditional', 'pkt_only' or 'noise_only'\n");
-		return -ENOEXEC;
-	}
-	if ((strcmp(argv[2], "all") != 0) && (strcmp(argv[2], "max") != 0) &&
-	    (strcmp(argv[2], "range") != 0)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Invalid stat_type. Use 'all', 'max' or 'range'\n");
-		return -ENOEXEC;
-	}
-
-	period = strtoul(argv[3], &ptr, 10);
-
-	if (period > 10) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Invalid time period. value in seconds with max duration of 10 seconds\n");
-		return -ENOEXEC;
-	}
-	if ((strcmp(argv[2], "range") == 0) && (argc < 6)) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "Range start and end values must be provided when stat_type is 'range'\n");
-		return -ENOEXEC;
-	}
-	if (strcmp(argv[2], "range") == 0) {
-		shell_fprintf(shell,
-			      SHELL_INFO,
-			      " command: %s %s %s %s %s\n",
-			      argv[1],
-			      argv[2],
-			      argv[3],
-			      argv[4],
-			      argv[5]);
-		range_start = strtol(argv[4], &ptr, 10);
-		range_end = strtol(argv[5], &ptr, 10);
-		if ((range_start < -100) || (range_start > 0) || (range_end < -100) || (range_end > 0) ||
-		    (range_start >= range_end)) {
-			shell_fprintf(shell,
-				      SHELL_ERROR,
-				      "Invalid range values. Range start and end should be in dBm with valid range from -100 to 0 and start value should be less than end value\n");
-			return -ENOEXEC;
-		}
-	} else {
-		shell_fprintf(shell,
-			      SHELL_INFO,
-			      " command: %s %s %s\n",
-			      argv[1],
-			      argv[2],
-			      argv[3]);
-	}
-	memset(&rh_params, 0, sizeof(rh_params));
-	rh_params.test = NRF_WIFI_RH_ONESHOT;
-	/* enable rssi histogram logic */
-	rh_params.rh_enable = 1;
-	rh_params.mode = 0; /* oneshot mode */
-	rh_params.hist_type = (strcmp(argv[1], "unconditional") == 0) ? 0 :
-			      ((strcmp(argv[1], "pkt_only") == 0) ? 1 : 2);
-	rh_params.stat_type = (strcmp(argv[2], "all") == 0) ? 0 :
-			      ((strcmp(argv[2], "max") == 0) ? 1 : 2);
-	rh_params.period = (unsigned char)period;
-	rh_params.range_start = (signed char)range_start;
-	rh_params.range_end = (signed char)range_end;
-	if (!check_test_in_prog(shell)) {
-		return -ENOEXEC;
-	}
-
-	ctx->rf_test_run = true;
-	ctx->rf_test = NRF_WIFI_RH_ONESHOT;
-
-	status = nrf_wifi_rt_fmac_rf_test_rh_oneshot(ctx->rpu_ctx,
-						     &rh_params);
-
-	if (status != NRF_WIFI_STATUS_SUCCESS) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "RH test start failed\n");
-		ctx->rf_test_run = false;
-		ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
-		return -ENOEXEC;
-	}
-
-	ctx->rf_test_run = false;
-	ctx->rf_test = NRF_WIFI_RF_TEST_MAX;
-
-	return 0;
-}
-#endif /* WIFI_NRF71 */
 
 #if (defined(WIFI_NRF71) && !defined(PHY_RF_PARAM_GDRAM)) || defined(WIFI_NRF70)
 
@@ -3696,6 +2835,7 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      "tx_pkt_gap = %d\n",
 		      conf_params->tx_pkt_gap_us);
 
+#ifndef WIFI_NRF71
 	shell_fprintf(shell,
 		      SHELL_INFO,
 		      "phy_calib_rxdc = %d\n",
@@ -3725,6 +2865,7 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      "phy_calib_txiq = %d\n",
 		      (conf_params->phy_calib &
 		       NRF_WIFI_PHY_CALIB_FLAG_TXIQ) ? 1:0);
+#endif /* !WIFI_NRF71 */
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
@@ -4095,6 +3236,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_defaults,
 		      1,
 		      0),
+#ifndef WIFI_NRF71
 	SHELL_CMD_ARG(phy_calib_rxdc,
 		      NULL,
 		      "0 - Disable RX DC calibration\n"
@@ -4130,43 +3272,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_phy_calib_txiq,
 		      2,
 		      0),
+#endif /* !WIFI_NRF71 */
 #ifdef WIFI_NRF71
-	SHELL_CMD_ARG(perform_rf_calibration,
-		      NULL,
-		      "<calib_bitmap> <sys_operating_mode> <result_index> - Run RF calibration",
-		      nrf_wifi_radio_test_perform_rf_calibration,
-		      3,
-		      1),
-	SHELL_CMD_ARG(read_rf_comp_results,
-		      NULL,
-		      "<mode> [result_index] - Read comp results into buffer (mode: 0=operating 1=scan; index 0 or 1)",
-		      nrf_wifi_radio_test_read_rf_comp_results,
-		      2,
-		      1),
-	SHELL_CMD_ARG(apply_rf_compensation,
-		      NULL,
-		      "<result_index> - Apply calibration from in-memory result buffer (0 or 1)",
-		      nrf_wifi_radio_test_apply_rf_compensation,
-		      2,
-		      0),
-	SHELL_CMD_ARG(set_calib_regs,
-		      NULL,
-		      "<cal_id> <num_regs> <addr0> <val0> [addr1 val1 ...] - Set calibration registers",
-		      nrf_wifi_radio_test_set_calib_regs,
-		      4,
-		      19),
-	SHELL_CMD_ARG(rf_patch_settings,
-		      NULL,
-		      "<patch_type> <index> <slice> <value> [band] [is_new_setting] - RF patch settings (patch_type 0..11)",
-		      nrf_wifi_radio_test_rf_patch_settings,
-		      5,
-		      7),
-	SHELL_CMD_ARG(phy_debug_stats,
-		      NULL,
-		      "Get PHY RX debug stats",
-		      nrf_wifi_radio_test_phy_debug_stats,
-		      1,
-		      0),
 	SHELL_CMD_ARG(config_vtf_params,
 		      NULL,
 		      "<voltage> <temp> <x0_freq> - x0 signed 8-bit, use before init",
@@ -4193,48 +3300,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      2,
 		      0),
 #endif
-	SHELL_CMD_ARG(enable_vt_calib,
-		      NULL,
-		      "<0|1> - Disable or enable VT calibration",
-		      nrf_wifi_radio_test_enable_vt_calib,
-		      2,
-		      0),
-	SHELL_CMD_ARG(enable_vt_comp,
-		      NULL,
-		      "<0|1> - Disable or enable VT compensation",
-		      nrf_wifi_radio_test_enable_vt_comp,
-		      2,
-		      0),
-	SHELL_CMD_ARG(set_reg,
-		      NULL,
-		      "<addr1> <val1> [addr2 val2 ...] - Write regs (max 8 pairs)",
-		      nrf_wifi_radio_test_set_reg,
-		      3,
-		      16),
-	SHELL_CMD_ARG(read_reg,
-		      NULL,
-		      "<addr1> [addr2 ...] - Read regs (max 8 addrs)",
-		      nrf_wifi_radio_test_read_reg,
-		      2,
-		      8),
-	SHELL_CMD_ARG(set_memory,
-		      NULL,
-		      "<addr1> <val1> [addr2 val2 ...] - Write memory (max 8 pairs)",
-		      nrf_wifi_radio_test_set_memory,
-		      3,
-		      16),
-	SHELL_CMD_ARG(read_memory,
-		      NULL,
-		      "<addr1> [addr2 ...] - Read memory (max 8 addrs)",
-		      nrf_wifi_radio_test_read_memory,
-		      2,
-		      8),
-	SHELL_CMD_ARG(adpll_cap,
-		      NULL,
-		      "<enabled> <enable_tracing> <cap_len> - ADPLL capture (NORMAL)",
-		      nrf_wifi_radio_test_adpll_cap,
-		      4,
-		      0),
 #endif
 	SHELL_CMD_ARG(he_ltf,
 		      NULL,
@@ -4460,6 +3525,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_tx_tone,
 		      2,
 		      0),
+#ifndef WIFI_NRF71
 	SHELL_CMD_ARG(dpd,
 		      NULL,
 		      "0 - Bypass DPD\n"
@@ -4485,6 +3551,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_get_rf_rssi,
 		      1,
 		      0),
+#endif /* !WIFI_NRF71 */
 	SHELL_CMD_ARG(set_xo_val,
 		      NULL,
 #ifdef WIFI_NRF71
@@ -4622,12 +3689,6 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      nrf_wifi_radio_test_set_tx_fec_coding,
 		      2,
 		      0),
-	SHELL_CMD_ARG(rh_oneshot,
-		      NULL,
-		      "RSSI histogram oneshot: <hist_type> <stat_type> <period_s> [range_start_dBm range_end_dBm]",
-		      nrf_wifi_radio_test_rh_oneshot,
-		      4,
-		      2),
 #endif
 	SHELL_SUBCMD_SET_END);
 
