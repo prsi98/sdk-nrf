@@ -1134,7 +1134,14 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 		status = nrf_wifi_rt_fmac_rf_test_tx_tone(ctx->rpu_ctx,
 						       0,
 						       ctx->conf_params.tx_tone_freq,
-						       ctx->conf_params.tx_power);
+						       ctx->conf_params.tx_power
+#ifdef CONFIG_NRF71_RADIO_TEST
+						       ,
+						       ctx->conf_params.tx_tone_type,
+						       ctx->conf_params.tx_tone_dc_offset_i,
+						       ctx->conf_params.tx_tone_dc_offset_q
+#endif /* CONFIG_NRF71_RADIO_TEST */
+						       );
 
 		if (status != NRF_WIFI_STATUS_SUCCESS) {
 			shell_fprintf(shell,
@@ -1569,7 +1576,14 @@ static int nrf_wifi_radio_test_tx_tone(const struct shell *shell,
 	status = nrf_wifi_rt_fmac_rf_test_tx_tone(ctx->rpu_ctx,
 					       (unsigned char)val,
 					       ctx->conf_params.tx_tone_freq,
-					       ctx->conf_params.tx_power);
+					       ctx->conf_params.tx_power
+#ifdef CONFIG_NRF71_RADIO_TEST
+					       ,
+					       ctx->conf_params.tx_tone_type,
+					       ctx->conf_params.tx_tone_dc_offset_i,
+					       ctx->conf_params.tx_tone_dc_offset_q
+#endif /* CONFIG_NRF71_RADIO_TEST */
+					       );
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
 		shell_fprintf(shell,
@@ -2356,6 +2370,80 @@ static int nrf_wifi_radio_test_set_tx_fec_coding(const struct shell *shell,
 
 	return 0;
 }
+
+static int nrf_wifi_radio_test_set_tx_tone_type(const struct shell *shell,
+						size_t argc,
+						const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long val = 0;
+
+	val = strtoul(argv[1], &ptr, 10);
+
+	if (val > 2) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'tx_tone_type' has to be 0 (complex), "
+			      "1 (real-only), or 2 (imag-only)\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.tx_tone_type = (unsigned char)val;
+
+	return 0;
+}
+
+static int nrf_wifi_radio_test_set_tx_tone_dc_offset(const struct shell *shell,
+						     size_t argc,
+						     const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long mode = 0;
+	long i_val = 0;
+	long q_val = 0;
+
+	mode = strtoul(argv[1], &ptr, 10);
+	if (mode > 3) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'mode' must be 0 (no offsets), 1 (I only), 2 (Q only), 3 (both)\n");
+		return -ENOEXEC;
+	}
+
+	i_val = strtol(argv[2], &ptr, 10);
+	q_val = strtol(argv[3], &ptr, 10);
+
+	if ((i_val > 2047) || (i_val < -2048) || (q_val > 2047) || (q_val < -2048)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "DC offset values must be in Q.11 range -2048 to 2047\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	if (mode == 0) {
+		ctx->conf_params.tx_tone_dc_offset_i = 0;
+		ctx->conf_params.tx_tone_dc_offset_q = 0;
+	} else if (mode == 1) {
+		ctx->conf_params.tx_tone_dc_offset_i = (signed short int)i_val;
+		ctx->conf_params.tx_tone_dc_offset_q = 0;
+	} else if (mode == 2) {
+		ctx->conf_params.tx_tone_dc_offset_i = 0;
+		ctx->conf_params.tx_tone_dc_offset_q = (signed short int)q_val;
+	} else {
+		ctx->conf_params.tx_tone_dc_offset_i = (signed short int)i_val;
+		ctx->conf_params.tx_tone_dc_offset_q = (signed short int)q_val;
+	}
+
+	return 0;
+}
 #endif /* CONFIG_NRF71_RADIO_TEST */
 
 static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
@@ -2589,6 +2677,21 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "tx_fec_padd_factor = %d\n",
 		      conf_params->tx_fec_padd_factor);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_tone_type = %d\n",
+		      conf_params->tx_tone_type);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_tone_dc_offset_i = %d\n",
+		      conf_params->tx_tone_dc_offset_i);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "tx_tone_dc_offset_q = %d\n",
+		      conf_params->tx_tone_dc_offset_q);
 #endif /* CONFIG_NRF71_RADIO_TEST */
 	return 0;
 }
@@ -3123,6 +3226,25 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "<val> -Set TX FEC coding (0=BCC, 1=LDPC)",
 		      nrf_wifi_radio_test_set_tx_fec_coding,
 		      2,
+		      0),
+	SHELL_CMD_ARG(tx_tone_type,
+		      NULL,
+		      "<val> - Tone type\n"
+		      "0 = Complex\n"
+		      "1 = Real-only\n"
+		      "2 = Imag-only",
+		      nrf_wifi_radio_test_set_tx_tone_type,
+		      2,
+		      0),
+	SHELL_CMD_ARG(tx_tone_dc_offset,
+		      NULL,
+		      "<mode> <DC_offset_i> <DC_offset_q>\n"
+		      "0 0 0 - No DC offsets\n"
+		      "1 <DC_offset_i> 0 - I only\n"
+		      "2 0 <DC_offset_q> - Q only\n"
+		      "3 <DC_offset_i> <DC_offset_q> - Both",
+		      nrf_wifi_radio_test_set_tx_tone_dc_offset,
+		      4,
 		      0),
 #endif /* CONFIG_NRF71_RADIO_TEST */
 	SHELL_SUBCMD_SET_END);
