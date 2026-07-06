@@ -1494,6 +1494,10 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 					      ctx->conf_params.capture_timeout,
 					      ctx->conf_params.lna_gain,
 					      ctx->conf_params.bb_gain,
+#ifdef CONFIG_NRF71_RADIO_TEST
+					      ctx->conf_params.ed_thresh_ofdm,
+					      ctx->conf_params.ed_thresh_dsss,
+#endif /* CONFIG_NRF71_RADIO_TEST */
 					      &capture_status);
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
@@ -2444,6 +2448,40 @@ static int nrf_wifi_radio_test_set_tx_tone_dc_offset(const struct shell *shell,
 
 	return 0;
 }
+
+static int nrf_wifi_radio_test_set_rx_capture_ed_thresh(const struct shell *shell,
+							size_t argc,
+							const char *argv[])
+{
+	char *ptr = NULL;
+	long ofdm = 0;
+	long dsss = 0;
+
+	ofdm = strtol(argv[1], &ptr, 10);
+	if (ofdm < -100 || ofdm > 0) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'ed_thresh_ofdm' must be in -100..0\n");
+		return -ENOEXEC;
+	}
+
+	dsss = strtol(argv[2], &ptr, 10);
+	if (dsss < -100 || dsss > 0) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "'ed_thresh_dsss' must be in -100..0\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.ed_thresh_ofdm = (unsigned char)((signed char)ofdm);
+	ctx->conf_params.ed_thresh_dsss = (unsigned char)((signed char)dsss);
+
+	return 0;
+}
 #endif /* CONFIG_NRF71_RADIO_TEST */
 
 static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
@@ -2692,6 +2730,16 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "tx_tone_dc_offset_q = %d\n",
 		      conf_params->tx_tone_dc_offset_q);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "ed_thresh_ofdm = %d\n",
+		      conf_params->ed_thresh_ofdm);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "ed_thresh_dsss = %d\n",
+		      conf_params->ed_thresh_dsss);
 #endif /* CONFIG_NRF71_RADIO_TEST */
 	return 0;
 }
@@ -3245,6 +3293,12 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "3 <DC_offset_i> <DC_offset_q> - Both",
 		      nrf_wifi_radio_test_set_tx_tone_dc_offset,
 		      4,
+		      0),
+	SHELL_CMD_ARG(rx_capture_ed_thresh,
+		      NULL,
+		      "<ofdm> <dsss> - ED thresholds dynamic packet capture (-100..0)",
+		      nrf_wifi_radio_test_set_rx_capture_ed_thresh,
+		      3,
 		      0),
 #endif /* CONFIG_NRF71_RADIO_TEST */
 	SHELL_SUBCMD_SET_END);
