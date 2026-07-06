@@ -19,7 +19,7 @@
 #include "util.h"
 
 #define RADIO_CMD_STATUS_TIMEOUT 5000
-
+#define RX_CAP_BYTES_PER_SAMPLE 4
 
 static enum nrf_wifi_status nrf_wifi_rt_fmac_fw_init(
 	struct nrf_wifi_fmac_dev_ctx *fmac_dev_ctx,
@@ -447,7 +447,7 @@ enum nrf_wifi_status nrf_wifi_rt_fmac_rf_test_rx_cap(struct nrf_wifi_fmac_dev_ct
 
 	rt_dev_ctx->rf_test_type = rf_test_type;
 	rt_dev_ctx->rf_test_cap_data = cap_data;
-	rt_dev_ctx->rf_test_cap_sz = (num_samples * 3);
+	rt_dev_ctx->rf_test_cap_sz = (num_samples * RX_CAP_BYTES_PER_SAMPLE);
 	rt_dev_ctx->capture_status = 0;
 
 	status = umac_cmd_rt_prog_rf_test(fmac_dev_ctx,
