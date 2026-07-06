@@ -601,6 +601,10 @@ enum nrf_wifi_status nrf_wifi_rt_fmac_rf_test_compute_xo(struct nrf_wifi_fmac_de
 		goto out;
 	}
 
+	if (rt_dev_ctx->xo_tune_status != 0) {
+		status = NRF_WIFI_STATUS_FAIL;
+	}
+
 out:
 	return status;
 }
