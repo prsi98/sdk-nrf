@@ -1228,10 +1228,10 @@ static int nrf_wifi_radio_test_set_tx(const struct shell *shell,
 
 	val = strtoul(argv[1], &ptr, 10);
 
-	if (val > 1) {
+	if (val != 0 && val != 1) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
-			      "Invalid value %lu\n",
+			      "Invalid value %lu (must be 0 or 1)\n",
 			      val);
 		shell_help(shell);
 		return -ENOEXEC;
@@ -1297,10 +1297,10 @@ static int nrf_wifi_radio_test_set_rx(const struct shell *shell,
 
 	val = strtoul(argv[1], &ptr, 10);
 
-	if (val > 1) {
+	if (val != 0 && val != 1) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
-			      "Invalid value %lu\n",
+			      "Invalid value %lu (must be 0 or 1)\n",
 			      val);
 		shell_help(shell);
 		return -ENOEXEC;
