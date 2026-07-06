@@ -2482,6 +2482,31 @@ static int nrf_wifi_radio_test_set_rx_capture_ed_thresh(const struct shell *shel
 
 	return 0;
 }
+
+static int nrf_wifi_radio_test_set_rx_bss_check(const struct shell *shell,
+						size_t argc,
+						const char *argv[])
+{
+	char *ptr = NULL;
+	unsigned long rx_bss_check = 0;
+
+	rx_bss_check = strtoul(argv[1], &ptr, 10);
+
+	if ((rx_bss_check < 0) || (rx_bss_check > 1)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid rx bss check setting\n");
+		return -ENOEXEC;
+	}
+
+	if (!check_test_in_prog(shell)) {
+		return -ENOEXEC;
+	}
+
+	ctx->conf_params.bss_check_enable = rx_bss_check;
+
+	return 0;
+}
 #endif /* CONFIG_NRF71_RADIO_TEST */
 
 static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
@@ -2740,6 +2765,11 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "ed_thresh_dsss = %d\n",
 		      conf_params->ed_thresh_dsss);
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
+		      "rx_bss_check = %d\n",
+		      conf_params->bss_check_enable);
 #endif /* CONFIG_NRF71_RADIO_TEST */
 	return 0;
 }
@@ -3299,6 +3329,12 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "<ofdm> <dsss> - ED thresholds dynamic packet capture (-100..0)",
 		      nrf_wifi_radio_test_set_rx_capture_ed_thresh,
 		      3,
+		      0),
+	SHELL_CMD_ARG(rx_bss_check,
+		      NULL,
+		      "<val> - BSS check (0=disable, 1=enable)",
+		      nrf_wifi_radio_test_set_rx_bss_check,
+		      2,
 		      0),
 #endif /* CONFIG_NRF71_RADIO_TEST */
 	SHELL_SUBCMD_SET_END);
