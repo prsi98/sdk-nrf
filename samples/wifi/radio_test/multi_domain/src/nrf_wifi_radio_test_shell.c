@@ -392,7 +392,7 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 	ret = nrf_wifi_utils_hex_str_to_val(
 			conf_params->rf_params,
 			NRF_WIFI_RF_PARAMS_SIZE,
-			NRF_WIFI_DEF_RF_PARAMS);
+			NRF_WIFI_RT_DEF_RF_PARAMS);
 	if (ret == -1) {
 
 		/*
@@ -2298,6 +2298,7 @@ out:
 #endif /* !WIFI_NRF71 */
 
 
+#ifndef WIFI_NRF71
 static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 				     size_t argc,
 				     const char *argv[])
@@ -2309,15 +2310,6 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 
 	val = strtol(argv[1], &ptr, 10);
 
-#ifdef WIFI_NRF71
-	if (val > 100 || val < -100) {
-		shell_fprintf(shell,
-			      SHELL_ERROR,
-			      "XO value must be in the range -100 to 100 (signed PPM)\n");
-		shell_help(shell);
-		goto out;
-	}
-#else
 	if (val > 0x7f) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
@@ -2333,7 +2325,6 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 		shell_help(shell);
 		goto out;
 	}
-#endif
 
 	if (val == 1) {
 		if (!check_test_in_prog(shell)) {
@@ -2345,11 +2336,7 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 	ctx->rf_test = NRF_WIFI_RF_TEST_XO_CALIB;
 
 	status = nrf_wifi_rt_fmac_set_xo_val(ctx->rpu_ctx,
-#ifdef WIFI_NRF71
-					       (signed char)val);
-#else
 					       (unsigned char)val);
-#endif
 
 	if (status != NRF_WIFI_STATUS_SUCCESS) {
 		shell_fprintf(shell,
@@ -2357,9 +2344,8 @@ static int nrf_wifi_radio_set_xo_val(const struct shell *shell,
 			      "XO value programming failed\n");
 		goto out;
 	}
-#ifndef WIFI_NRF71
+
 	ctx->conf_params.rf_params[NRF_WIFI_XO_FREQ_BYTE_OFFSET] = (unsigned char)val;
-#endif /* !WIFI_NRF71 */
 	ret = 0;
 out:
 	ctx->rf_test_run = false;
@@ -2367,6 +2353,7 @@ out:
 
 	return ret;
 }
+#endif /* !WIFI_NRF71 */
 
 static int nrf_wifi_radio_comp_opt_xo_val(const struct shell *shell,
 					  size_t argc,
@@ -2746,7 +2733,7 @@ static int nrf_wifi_radio_test_set_tx_num_he_ltf(const struct shell *shell,
 		return -ENOEXEC;
 	}
 
-	ctx->conf_params.he_ltf =
+	ctx->conf_params.tx_num_he_ltf =
 		(unsigned char)tx_num_he_ltf;
 
 	return 0;
@@ -3552,16 +3539,14 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      1,
 		      0),
 #endif /* !WIFI_NRF71 */
+#ifndef WIFI_NRF71
 	SHELL_CMD_ARG(set_xo_val,
 		      NULL,
-#ifdef WIFI_NRF71
-		      "<val> - XO value in the range -100 to 100 (signed PPM)",
-#else
 		      "<val> - XO value in the range 0 to 127",
-#endif
 		      nrf_wifi_radio_set_xo_val,
 		      2,
 		      0),
+#endif /* !WIFI_NRF71 */
 	SHELL_CMD_ARG(compute_optimal_xo_val,
 		      NULL,
 		      "Compute optimal XO trim value",
@@ -3679,7 +3664,11 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      0),
 	SHELL_CMD_ARG(tx_num_he_ltf,
 		      NULL,
-		      "<val> - tx_num_he_ltf (0=1LTF, 1=2LTF, 2=4LTF, 3=6LTF, 4=8LTF)",
+		      "0 - 1 HE-LTF symbol\n"
+		      "1 - 2 HE-LTF symbols\n"
+		      "2 - 4 HE-LTF symbols\n"
+		      "3 - 6 HE-LTF symbols\n"
+		      "4 - 8 HE-LTF symbols                                        ",
 		      nrf_wifi_radio_test_set_tx_num_he_ltf,
 		      2,
 		      0),
