@@ -1,9 +1,10 @@
-``wifi_radio_test`` is the Wi-Fi® radio test command and it supports the following subcommands.
+``wifi_radio_test`` is the Wi-Fi® radio test command on nRF70 Series devices.
+It supports the following subcommands.
 
-Wi-Fi radio test subcommands
-****************************
+Wi-Fi radio test subcommands (nRF70 Series)
+********************************************
 
-.. list-table:: Wi-Fi radio test subcommands
+.. list-table:: Wi-Fi radio test subcommands (nRF70 Series)
    :header-rows: 1
 
    * - Subcommand

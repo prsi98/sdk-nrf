@@ -15,7 +15,8 @@ It provides a set of predefined commands that allow you to configure the radio i
 * Tone transmission
 * IQ sample capture at ADC output
 
-The sample also shows how to program the user region of FICR parameters on the development kit using a set of predefined commands.
+For nRF70 Series builds, the sample also shows how to program the user region of FICR parameters on the development kit using a set of predefined commands.
+FICR programming is not supported on nRF71 Series devices (for example, nRF7120 DK).
 
 Requirements
 ************
@@ -31,17 +32,19 @@ To run the tests, connect to the development kit through the serial port and sen
 Zephyr's :ref:`zephyr:shell_api` module is used to handle the commands.
 
 You can start running ``wifi_radio_test`` subcommands to set up and control the radio.
-See :ref:`wifi_radio_subcommands` for a list of available subcommands.
+See :ref:`wifi_radio_subcommands_sd` for a list of available subcommands.
+The command set differs between nRF70 Series and nRF71 Series builds.
 
 In the Modulated carrier RX mode, you can use the ``get_stats`` subcommand to display the statistics.
-See :ref:`wifi_radio_subcommands` for a list of available statistics.
+See :ref:`wifi_radio_subcommands_sd` for a list of available statistics.
 
-You can use ``wifi_radio_ficr_prog`` subcommands to read or write OTP registers.
-See :ref:`wifi_ficr_prog` for a list of available subcommands.
+For nRF70 Series builds, you can use ``wifi_radio_ficr_prog`` subcommands to read or write OTP registers.
+See :ref:`wifi_ficr_prog_sd` for a list of available subcommands.
 
 .. note::
 
-   All the FICR registers are stored in the one-time programmable (OTP) memory.
+   FICR programming applies to nRF70 Series companion IC builds only.
+   All FICR registers are stored in the one-time programmable (OTP) memory.
    Consequently, the write commands are destructive.
    Once written, the contents of the OTP registers cannot be reprogrammed.
 
@@ -60,6 +63,13 @@ The following is an example of the CLI command:
 .. code-block:: console
 
    west build -b nrf54l15dk/nrf54l15/cpuapp -- -DSHIELD=nrf7002eb2 -DSNIPPET=nrf70-wifi
+
+To build for the nRF7120 DK, use the ``nrf7120dk/nrf7120/cpuapp`` board target.
+The following is an example of the CLI command:
+
+.. code-block:: console
+
+   west build -b nrf7120dk/nrf7120/cpuapp
 
 See also :ref:`cmake_options` for instructions on how to provide CMake options.
 
