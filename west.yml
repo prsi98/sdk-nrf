@@ -143,9 +143,13 @@ manifest:
       repo-path: sdk-oberon-psa-crypto
       revision: 0c047bb1ab0bc92450906b451c706c7255938903
     - name: nrfxlib
-      repo-path: sdk-nrfxlib
+      url: https://github.com/prsi98/sdk-nrfxlib
       path: nrfxlib
-      revision: pull/1887/head
+      revision: nrf71_fpga_test
+    - name: nrf_wifi
+      url: https://github.com/prsi98/nrf_wifi
+      path: modules/lib/nrf_wifi
+      revision: nrf71_platform
     - name: trusted-firmware-m
       repo-path: sdk-trusted-firmware-m
       path: modules/tee/tf-m/trusted-firmware-m
