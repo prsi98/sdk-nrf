@@ -33,6 +33,36 @@ static unsigned int vtf_x0 = 0;
 
 #define NRF_WIFI_RADIO_TEST_INIT_TIMEOUT_MS 5000
 
+#ifdef WIFI_NRF71
+static int parse_power_mode_arg(const struct shell *shell,
+				const char *arg,
+				unsigned char *mode_out)
+{
+	char *ptr = NULL;
+	unsigned long mode;
+
+	if (strcmp(arg, "rx_only") == 0) {
+		*mode_out = rx_only_mode;
+		return 0;
+	}
+
+	if (strcmp(arg, "trx") == 0) {
+		*mode_out = trx_normal_mode;
+		return 0;
+	}
+
+	mode = strtoul(arg, &ptr, 0);
+	if (ptr != arg && *ptr == '\0' && mode <= trx_normal_mode) {
+		*mode_out = (unsigned char)mode;
+		return 0;
+	}
+
+	shell_fprintf(shell, SHELL_ERROR,
+		      "power_mode must be rx_only, trx, 0, or 1\n");
+	return -EINVAL;
+}
+#endif /* WIFI_NRF71 */
+
 static bool check_test_in_prog(const struct shell *shell)
 {
 	if (ctx->conf_params.rx) {
@@ -366,6 +396,9 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 
 	/* Initialize values which are other than 0 */
 	conf_params->op_mode = RPU_OP_MODE_RADIO_TEST;
+#ifdef WIFI_NRF71
+	conf_params->power_mode = trx_normal_mode;
+#endif /* WIFI_NRF71 */
 
 #ifndef NRF71_ON_IPC
 #ifdef WIFI_NRF71
@@ -1567,9 +1600,21 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 	//unsigned long val = 0;
 
 	unsigned long band, chan_num = 0;
+#ifdef WIFI_NRF71
+	/* Two-argument init uses TRX; optional third selects LP (0) or TRX (1). */
+	unsigned char power_mode = trx_normal_mode;
+#endif /* WIFI_NRF71 */
 
 	band = strtoul(argv[1], &ptr, 10);
 	chan_num = strtoul(argv[2], &ptr, 10);
+
+#ifdef WIFI_NRF71
+	if (argc >= 4) {
+		if (parse_power_mode_arg(shell, argv[3], &power_mode) != 0) {
+			return -ENOEXEC;
+		}
+	}
+#endif /* WIFI_NRF71 */
 
 	switch (band) {
 	case WIFI_FREQ_BAND_2_4_GHZ:
@@ -1696,6 +1741,9 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 	ctx->conf_params.chan.op_band = band;
 #endif /* WIFI_NRF71 */
 	ctx->conf_params.chan.primary_num = chan_num;
+#ifdef WIFI_NRF71
+	ctx->conf_params.power_mode = power_mode;
+#endif /* WIFI_NRF71 */
 
 	status = nrf_wifi_rt_fmac_radio_test_init(ctx->rpu_ctx,
 					       &ctx->conf_params);
@@ -3007,6 +3055,13 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
+		      "power_mode = %u (%s)\n",
+		      conf_params->power_mode,
+		      conf_params->power_mode == rx_only_mode ? "rx_only" :
+		      "trx");
+
+	shell_fprintf(shell,
+		      SHELL_INFO,
 		      "tx_dcm = %d\n",
 		      conf_params->tx_dcm);
 
@@ -3391,10 +3446,18 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 	SHELL_CMD_ARG(init,
 		      NULL,
 		      "<val> - Band\n"
-		      "<val> - Primary channel number",
+		      "<val> - Primary channel number\n"
+#ifdef WIFI_NRF71
+		      "[mode] - Optional: 0 or rx_only = LP RX; 1 or trx = TRX (default if omitted)\n"
+#endif
+		      ,
 		      nrf_wifi_radio_test_init,
 		      3,
+#ifdef WIFI_NRF71
+		      1),
+#else
 		      0),
+#endif
 	SHELL_CMD_ARG(tx,
 		      NULL,
 		      "0 - Disable TX\n"
