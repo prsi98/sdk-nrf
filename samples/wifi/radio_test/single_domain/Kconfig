@@ -12,4 +12,12 @@ config SAMPLE_WIFI_RADIO_TEST_WIFI_ONLY
 	  Enable Wi-Fi only radio test mode, excluding peripheral BLE radio test
 	  sources. BLE stack support remains enabled on combo chips.
 
+config RADIO_TEST_VTF_XO_FROM_XTALCOMP
+	bool "Feed the VTF XO frequency offset from FICR/UICR XTALCOMP.OFFSET"
+	depends on SOC_SERIES_NRF71 && VTF_MONITORING
+	help
+	  Register a VTF_CH_FREQ_OFFSET backend that reads FICR XTALCOMP.OFFSET,
+	  falling back to UICR XTALCOMP.OFFSET, and writes it to the VTF snapshot
+	  before the Wi-Fi core starts. A blank (0xFFFFFFFF) value means 0 ppm.
+
 rsource "$(ZEPHYR_NRF_MODULE_DIR)/samples/peripheral/radio_test/Kconfig"

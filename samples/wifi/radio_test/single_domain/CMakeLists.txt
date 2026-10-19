@@ -14,6 +14,14 @@ target_sources(app PRIVATE
   src/early_shell_start.c
 )
 
+target_sources_ifdef(CONFIG_SOC_SERIES_NRF71 app PRIVATE
+  src/ficr_mac_print.c
+)
+
+target_sources_ifdef(CONFIG_RADIO_TEST_VTF_XO_FROM_XTALCOMP app PRIVATE
+  src/xo_vtf.c
+)
+
 # Include BLE radio test sources only in default mode
 if(NOT CONFIG_SAMPLE_WIFI_RADIO_TEST_WIFI_ONLY)
   set(perip_rt_dir ${ZEPHYR_NRF_MODULE_DIR}/samples/peripheral/radio_test)
