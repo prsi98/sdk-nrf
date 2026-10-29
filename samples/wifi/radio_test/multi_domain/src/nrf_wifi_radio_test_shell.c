@@ -41,24 +41,24 @@ static int parse_power_mode_arg(const struct shell *shell,
 	char *ptr = NULL;
 	unsigned long mode;
 
-	if (strcmp(arg, "rx_only") == 0) {
-		*mode_out = rx_only_mode;
+	if (strcmp(arg, "rx_only") == 0 || strcmp(arg, "low_power") == 0) {
+		*mode_out = low_power_mode;
 		return 0;
 	}
 
-	if (strcmp(arg, "trx") == 0) {
-		*mode_out = trx_normal_mode;
+	if (strcmp(arg, "trx") == 0 || strcmp(arg, "normal") == 0) {
+		*mode_out = normal_mode;
 		return 0;
 	}
 
 	mode = strtoul(arg, &ptr, 0);
-	if (ptr != arg && *ptr == '\0' && mode <= trx_normal_mode) {
+	if (ptr != arg && *ptr == '\0' && mode <= normal_mode) {
 		*mode_out = (unsigned char)mode;
 		return 0;
 	}
 
 	shell_fprintf(shell, SHELL_ERROR,
-		      "power_mode must be rx_only, trx, 0, or 1\n");
+		      "power_mode must be rx_only, low_power, trx, normal, 0, or 1\n");
 	return -EINVAL;
 }
 #endif /* WIFI_NRF71 */
@@ -397,7 +397,7 @@ enum nrf_wifi_status nrf_wifi_radio_test_conf_init(struct rpu_conf_params *conf_
 	/* Initialize values which are other than 0 */
 	conf_params->op_mode = RPU_OP_MODE_RADIO_TEST;
 #ifdef WIFI_NRF71
-	conf_params->power_mode = trx_normal_mode;
+	conf_params->power_mode = normal_mode;
 #endif /* WIFI_NRF71 */
 
 #ifndef NRF71_ON_IPC
@@ -1602,7 +1602,7 @@ static int nrf_wifi_radio_test_init(const struct shell *shell,
 	unsigned long band, chan_num = 0;
 #ifdef WIFI_NRF71
 	/* Two-argument init uses TRX; optional third selects LP (0) or TRX (1). */
-	unsigned char power_mode = trx_normal_mode;
+	unsigned char power_mode = normal_mode;
 #endif /* WIFI_NRF71 */
 
 	band = strtoul(argv[1], &ptr, 10);
@@ -2011,9 +2011,14 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 
 	rx_cap_type = strtoul(argv[1], &ptr, 10);
 
-	if ((rx_cap_type !=  NRF_WIFI_RF_TEST_RX_ADC_CAP) &&
+	if ((rx_cap_type != NRF_WIFI_RF_TEST_RX_ADC_CAP) &&
 	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_STAT_PKT_CAP) &&
-	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_DYN_PKT_CAP)) {
+	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_DYN_PKT_CAP)
+#ifdef WIFI_NRF71
+	    && (rx_cap_type != NRF_WIFI_RF_TEST_RX_AGC_ENB_CAP) &&
+	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_EXT_EVENT_CAP)
+#endif
+	    ) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
 			      "Invalid value %lu\n",
@@ -3057,8 +3062,8 @@ static int nrf_wifi_radio_test_show_cfg(const struct shell *shell,
 		      SHELL_INFO,
 		      "power_mode = %u (%s)\n",
 		      conf_params->power_mode,
-		      conf_params->power_mode == rx_only_mode ? "rx_only" :
-		      "trx");
+		      conf_params->power_mode == low_power_mode ? "low_power" :
+		      "normal");
 
 	shell_fprintf(shell,
 		      SHELL_INFO,
@@ -3448,7 +3453,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "<val> - Band\n"
 		      "<val> - Primary channel number\n"
 #ifdef WIFI_NRF71
-		      "[mode] - Optional: 0 or rx_only = LP RX; 1 or trx = TRX (default if omitted)\n"
+		      "[mode] - Optional: 0/low_power/rx_only = LP RX; 1/normal/trx = TRX (default)\n"
 #endif
 		      ,
 		      nrf_wifi_radio_test_init,
@@ -3536,7 +3541,13 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      NULL,
 		      "0 = ADC capture\n"
 		      "1 = Filtered ADC capture\n"
-		      "2 = Dynamic packet capture",
+		      "2 = Dynamic packet capture\n"
+#ifdef WIFI_NRF71
+		      "3 = AGC enable capture\n"
+		      "4 = Extended event capture",
+#else
+		      "",
+#endif
 		      nrf_wifi_radio_test_rx_cap,
 		      2,
 		      0),
