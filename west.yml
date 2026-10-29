@@ -145,11 +145,11 @@ manifest:
     - name: nrfxlib
       url: https://github.com/prsi98/sdk-nrfxlib
       path: nrfxlib
-      revision: nrf71_fpga_test
+      revision: c28c2e018c01455c6e268543f491e32f484dd072
     - name: nrf_wifi
       url: https://github.com/prsi98/nrf_wifi
       path: modules/lib/nrf_wifi
-      revision: nrf71_platform
+      revision: b964f4b60ff5f77393dcb4cda16d194d8bc5a32e
     - name: trusted-firmware-m
       repo-path: sdk-trusted-firmware-m
       path: modules/tee/tf-m/trusted-firmware-m
