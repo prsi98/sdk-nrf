@@ -145,7 +145,7 @@ manifest:
     - name: nrfxlib
       url: https://github.com/prsi98/sdk-nrfxlib
       path: nrfxlib
-      revision: c28c2e018c01455c6e268543f491e32f484dd072
+      revision: aeb8e091b6bfc98f6f44524d15cbf394efe41b4c
     - name: nrf_wifi
       url: https://github.com/prsi98/nrf_wifi
       path: modules/lib/nrf_wifi
