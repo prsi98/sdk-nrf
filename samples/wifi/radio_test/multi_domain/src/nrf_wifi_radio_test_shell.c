@@ -1997,6 +1997,17 @@ static int nrf_wifi_radio_test_config_pta(const struct shell *shell,
 }
 #endif /* CONFIG_NRF70_SR_COEX */
 
+#ifdef WIFI_NRF71
+static bool nrf_wifi_radio_test_is_rx_cap_type(unsigned long type)
+{
+	return type == NRF_WIFI_RF_TEST_RX_ADC_CAP ||
+	       type == NRF_WIFI_RF_TEST_RX_STAT_PKT_CAP ||
+	       type == NRF_WIFI_RF_TEST_RX_DYN_PKT_CAP ||
+	       type == NRF_WIFI_RF_TEST_RX_AGC_ENB_CAP ||
+	       type == NRF_WIFI_RF_TEST_RX_EXT_EVENT_CAP;
+}
+#endif /* WIFI_NRF71 */
+
 static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 				      size_t argc,
 				      const char *argv[])
@@ -2011,14 +2022,24 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 
 	rx_cap_type = strtoul(argv[1], &ptr, 10);
 
+#ifdef WIFI_NRF71
+	if (!nrf_wifi_radio_test_is_rx_cap_type(rx_cap_type)) {
+		shell_fprintf(shell,
+			      SHELL_ERROR,
+			      "Invalid capture type %lu (use 0, 1, 2, %u, or %u; "
+			      "%u/%u are tx_tone/xo_tune — use other commands)\n",
+			      rx_cap_type,
+			      (unsigned long)NRF_WIFI_RF_TEST_RX_AGC_ENB_CAP,
+			      (unsigned long)NRF_WIFI_RF_TEST_RX_EXT_EVENT_CAP,
+			      (unsigned long)NRF_WIFI_RF_TEST_TX_TONE,
+			      (unsigned long)NRF_WIFI_RF_TEST_XO_TUNE);
+		shell_help(shell);
+		return -ENOEXEC;
+	}
+#else
 	if ((rx_cap_type != NRF_WIFI_RF_TEST_RX_ADC_CAP) &&
 	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_STAT_PKT_CAP) &&
-	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_DYN_PKT_CAP)
-#ifdef WIFI_NRF71
-	    && (rx_cap_type != NRF_WIFI_RF_TEST_RX_AGC_ENB_CAP) &&
-	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_EXT_EVENT_CAP)
-#endif
-	    ) {
+	    (rx_cap_type != NRF_WIFI_RF_TEST_RX_DYN_PKT_CAP)) {
 		shell_fprintf(shell,
 			      SHELL_ERROR,
 			      "Invalid value %lu\n",
@@ -2026,6 +2047,7 @@ static int nrf_wifi_radio_test_rx_cap(const struct shell *shell,
 		shell_help(shell);
 		return -ENOEXEC;
 	}
+#endif
 
 	if (!ctx->conf_params.capture_length) {
 		shell_fprintf(shell,
@@ -3543,8 +3565,9 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 		      "1 = Filtered ADC capture\n"
 		      "2 = Dynamic packet capture\n"
 #ifdef WIFI_NRF71
-		      "3 = AGC enable capture\n"
-		      "4 = Extended event capture",
+		      "5 = AGC enable capture\n"
+		      "6 = Extended event capture\n"
+		      "(3 = tx_tone, 4 = xo_tune — not via rx_cap)",
 #else
 		      "",
 #endif
